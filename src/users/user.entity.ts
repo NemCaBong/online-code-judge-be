@@ -1,4 +1,5 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { UserChallengeResult } from 'src/challenges/entities/user-challenge-result.entity';
+import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 
 @Entity('users')
 export class User {
@@ -17,8 +18,14 @@ export class User {
   @Column({ length: 255 })
   email: string;
 
-  @Column({ length: 255, select: false })
+  @Column({ length: 255 })
   password: string;
+
+  @OneToMany(
+    () => UserChallengeResult,
+    (userChallengeResult) => userChallengeResult.challenge,
+  )
+  userChallengeResults: UserChallengeResult[];
 
   toJSON() {
     const { password, ...userWithoutPassword } = this;

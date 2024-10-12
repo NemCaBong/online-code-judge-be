@@ -5,18 +5,24 @@ import {
   UseGuards,
   Request,
   UnauthorizedException,
+  Get,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Public } from 'src/common/decorators/public.decorator';
+import { RoleGuard } from './guards/role.guard';
+import { Role } from 'src/common/decorators/role.decorator';
+import { RoleEnum } from 'src/common/enums/role.enum';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  @Public()
   @Post('login')
-  async login(@Body() loginDto: { username: string; password: string }) {
+  async login(@Body() loginDto: { email: string; password: string }) {
     const user = await this.authService.validateUser(
-      loginDto.username,
+      loginDto.email,
       loginDto.password,
     );
     if (!user) {
@@ -30,8 +36,10 @@ export class AuthController {
     return this.authService.signup(user);
   }
 
+  @Role(RoleEnum.STUDENT)
+  @UseGuards(RoleGuard)
   @UseGuards(JwtAuthGuard)
-  @Post('profile')
+  @Get('profile')
   getProfile(@Request() req) {
     return req.user;
   }

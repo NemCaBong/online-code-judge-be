@@ -1,7 +1,7 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
-import { jwtConstants } from './constants';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { jwtConstants } from '../constants';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -13,7 +13,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
+  // This method will be called when the token is valid and the user is authenticated
   async validate(payload: any) {
-    return { userId: payload.sub, username: payload.username };
+    return { id: payload.userId, email: payload.email, role: payload.role };
   }
 }
