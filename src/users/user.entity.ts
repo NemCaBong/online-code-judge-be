@@ -1,16 +1,17 @@
 import { UserChallengeResult } from 'src/challenges/entities/user-challenge-result.entity';
-import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
+import { UserClass } from 'src/classes/entities/user-class.entity';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn('increment')
+  @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ length: 30 })
-  firstName: string;
+  first_name: string;
 
   @Column({ length: 30 })
-  lastName: string;
+  last_name: string;
 
   @Column({ length: 20 })
   role: string;
@@ -26,6 +27,14 @@ export class User {
     (userChallengeResult) => userChallengeResult.challenge,
   )
   userChallengeResults: UserChallengeResult[];
+
+  @OneToMany(() => UserClass, (userClass) => userClass.user, {
+    createForeignKeyConstraints: false,
+  })
+  class: UserClass[];
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  created_at: Date;
 
   toJSON() {
     const { password, ...userWithoutPassword } = this;

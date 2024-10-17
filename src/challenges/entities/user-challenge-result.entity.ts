@@ -1,10 +1,11 @@
 import { User } from 'src/users/user.entity';
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  ManyToOne,
+  CreateDateColumn,
+  Entity,
   JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Challenge } from './challenge.entity';
 
@@ -13,7 +14,7 @@ export class UserChallengeResult {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', nullable: true })
   submission_id: string;
 
   @ManyToOne(() => User, (user) => user.userChallengeResults, {
@@ -30,4 +31,25 @@ export class UserChallengeResult {
 
   @Column({ length: 30 })
   status: string;
+
+  @CreateDateColumn()
+  created_at: Date;
+
+  @Column({ type: 'text', nullable: true })
+  code: string;
+
+  @Column({ type: 'integer', nullable: true })
+  language_id: number;
+
+  @Column({ type: 'integer', nullable: true })
+  time_taken: number;
+
+  @Column({ type: 'integer', nullable: true })
+  memory_taken: number;
+
+  @Column({
+    type: 'timestamp',
+    nullable: true,
+  })
+  submitted_at: Date;
 }

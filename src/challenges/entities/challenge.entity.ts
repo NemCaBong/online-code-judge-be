@@ -1,12 +1,18 @@
 import {
-  Entity,
   Column,
-  PrimaryGeneratedColumn,
-  OneToMany,
+  Entity,
   JoinColumn,
+  JoinTable,
+  ManyToMany,
+  OneToMany,
+  PrimaryGeneratedColumn,
 } from 'typeorm';
-import { Difficulty } from '../../common/enums/difficulty.enum';
+import { DifficultyEnum } from '../../common/enums/difficulty.enum';
 import { UserChallengeResult } from './user-challenge-result.entity';
+import { ChallengeDetail } from './challenge-detail.entity';
+import { Tag } from '../../tags/entities/tag.entity';
+import { TestCase } from './test-case.entity';
+import { Hint } from './hint.entity';
 
 @Entity('challenges')
 export class Challenge {
@@ -21,15 +27,15 @@ export class Challenge {
 
   @Column({
     type: 'enum',
-    enum: Difficulty,
-    default: Difficulty.MEDIUM,
+    enum: DifficultyEnum,
+    default: DifficultyEnum.EASY,
   })
-  difficulty: Difficulty;
+  difficulty: DifficultyEnum;
 
-  @Column('date')
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @Column('date')
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   updated_at: Date;
 
   @Column({ default: false })
@@ -56,4 +62,31 @@ export class Challenge {
   )
   @JoinColumn()
   userChallengeResults: UserChallengeResult[];
+
+  @OneToMany(
+    () => ChallengeDetail,
+    (challengeDetail) => challengeDetail.challenge,
+    { createForeignKeyConstraints: false },
+  )
+  challengeDetails: ChallengeDetail[];
+
+  @ManyToMany(() => Tag, (tag) => tag.challenges, {
+    createForeignKeyConstraints: false,
+  })
+  @JoinTable({
+    name: 'challenge_tags', // Name of the join table
+    joinColumn: { name: 'challenge_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'id' },
+  })
+  tags: Tag[];
+
+  @OneToMany(() => TestCase, (testCase) => testCase.challenge, {
+    createForeignKeyConstraints: false,
+  })
+  testCases: TestCase[];
+
+  @OneToMany(() => Hint, (hint) => hint.challenge, {
+    createForeignKeyConstraints: false,
+  })
+  hints: Hint[];
 }
