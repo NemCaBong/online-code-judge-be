@@ -1,13 +1,10 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryColumn, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('challenges_tags')
 export class ChallengeTag {
-  @PrimaryGeneratedColumn()
-  id: number;
-
-  @Column()
+  @PrimaryColumn()
   challenge_id: number;
 
-  @Column()
+  @PrimaryColumn()
   tag_id: number;
 }

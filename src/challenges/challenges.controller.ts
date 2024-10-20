@@ -17,6 +17,8 @@ import { RunChallengeDto } from './dtos/run-challenge.dto';
 import { RunPollDataDto, RunPollDto } from './dtos/run-poll.dto';
 import { SubmitPollDto } from './dtos/submit-poll.dto';
 import { SubmitChallengeDto } from './dtos/submit-challenge.dto';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import { User } from 'src/users/user.entity';
 
 @Controller('challenges')
 export class ChallengesController {
@@ -30,36 +32,33 @@ export class ChallengesController {
     const page = query.page ? Number(query.page) : 1;
     const limit = query.limit ? Number(query.limit) : 10;
     const userId = req.user.id;
-    const { acSubmissionCount, allChallengesCount } =
-      await this.challengesService.countAllChallengesAndUsersSubmitted(userId);
+    // const { acSubmissionCount, allChallengesCount } =
+    //   await this.challengesService.countAllChallengesAndUsersSubmitted(userId);
     const challenges =
-      await this.challengesService.getAllChallengesWithUserStatus(
-        userId,
-        page,
-        limit,
-      );
+      await this.challengesService.getAllChallengesWithUserStatus(userId);
+    const doneEasy =
+      await this.challengesService.getTotalDoneEasyChalenges(userId);
     const todos = await this.challengesService.getTodoChallenges(userId);
     return {
       data: {
-        acSubmissionCount,
-        allChallengesCount,
         challenges,
         todos,
+        doneEasy,
       },
     };
   }
 
-  @Get('done-and-total-challenges/:id')
-  async getDoneAndTotalChallenges(
-    @Param('id') userId: number,
-  ): Promise<{ doneChallenges: number; totalChallenges: number }> {
-    const [doneChallenges, totalChallenges] = await Promise.all([
-      this.challengesService.getDoneChallenges(userId),
+  @Get('/info/done-and-total')
+  async getDoneAndTotalChallenges(@CurrentUser() user: User) {
+    const [done, total] = await Promise.all([
+      this.challengesService.getDoneChallenges(user.id),
       this.challengesService.getTotalChallenges(),
     ]);
     return {
-      doneChallenges,
-      totalChallenges,
+      message: 'Success',
+      statusCode: 200,
+      done,
+      total,
     };
   }
 
@@ -86,10 +85,12 @@ export class ChallengesController {
   async createChallenge(
     @Body() createChallengeDto: CreateChallengeDto,
   ): Promise<object> {
-    await this.challengesService.createChallenge(createChallengeDto);
+    const result =
+      await this.challengesService.createChallenge(createChallengeDto);
     return {
-      message: 'Challenge created successfully',
+      message: 'Success',
       statusCode: 201,
+      result: { id: result.id },
     };
   }
 
@@ -125,14 +126,77 @@ export class ChallengesController {
     );
   }
 
-  @Post(':challengeSlug/submit-poll')
+  @Post('poll-submit')
   async pollSubmitCode(
-    @Param('challengeSlug') challengeSlug: string,
+    // @Param('challengeSlug') challengeSlug: string,
     @Body() submitPollDto: SubmitPollDto,
   ) {
     return await this.challengesService.pollingForSubmission(
-      challengeSlug,
+      // challengeSlug,
       submitPollDto,
     );
+  }
+
+  @Get('/info/done-and-total-medium')
+  async getDoneAndTotalMediumChallenges(@CurrentUser() user: User) {
+    const [done, total] = await Promise.all([
+      this.challengesService.getTotalDoneMediumChalenges(user.id),
+      this.challengesService.getTotalMediumChallenges(),
+    ]);
+    return {
+      message: 'Success',
+      status_code: 200,
+      done,
+      total,
+    };
+  }
+
+  @Get('/info/done-and-total-hard')
+  async getDoneAndTotalHardChallenges(@CurrentUser() user: User) {
+    const [done, total] = await Promise.all([
+      this.challengesService.getTotalDoneHardChalenges(user.id),
+      this.challengesService.getTotalHardChallenges(),
+    ]);
+    return {
+      message: 'Success',
+      status_code: 200,
+      done,
+      total,
+    };
+  }
+
+  @Get('/info/done-and-total-easy')
+  async getDoneAndTotalEasyChallenges(@CurrentUser() user: User) {
+    const [done, total] = await Promise.all([
+      this.challengesService.getTotalDoneEasyChalenges(user.id),
+      this.challengesService.getTotalEasyChallenges(),
+    ]);
+    return {
+      message: 'Success',
+      status_code: 200,
+      done,
+      total,
+    };
+  }
+
+  @Get('/to-do/all')
+  async getTodoChallenges(@CurrentUser() user: User) {
+    const todos = await this.challengesService.getTodoChallenges(user.id);
+    return {
+      message: 'Success',
+      status_code: 200,
+      todos,
+    };
+  }
+
+  @Get('users/list')
+  async getChallengesWithUserStatus(@CurrentUser() user: User) {
+    const challenges =
+      await this.challengesService.getAllChallengesWithUserStatus(user.id);
+    return {
+      message: 'Success',
+      status_code: 200,
+      challenges,
+    };
   }
 }

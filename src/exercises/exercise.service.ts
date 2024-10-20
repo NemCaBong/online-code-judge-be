@@ -22,7 +22,7 @@ export class ExerciseService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async getUserExercises(userId: number): Promise<any[]> {
+  async getUserSoonDueExercises(userId: number): Promise<Exercise[]> {
     const userClasses = await this.userClassRepository.find({
       select: { class_id: true },
       where: { user_id: userId },
@@ -35,10 +35,10 @@ export class ExerciseService {
 
     return await this.exerciseRepo
       .createQueryBuilder('e')
-      .innerJoinAndSelect('e.classExercises', 'ce')
+      .innerJoinAndSelect('e.classes_exercises', 'ce')
       .innerJoinAndSelect('ce.class', 'class') // Join with the Class entity
       .leftJoinAndSelect(
-        'e.userExerciseResult',
+        'e.user_exercise_results',
         'uer',
         'uer.user_id = :userId',
         { userId },
@@ -61,11 +61,14 @@ export class ExerciseService {
   async getNumberOfDoneExercises(userId: number): Promise<number> {
     const classesOfUser = await this.classService.getClassesOfUser(userId);
     const classIds = classesOfUser.map((classItem) => classItem.id);
+    if (classIds.length === 0) {
+      return 0;
+    }
     return await this.exerciseRepo
       .createQueryBuilder('e')
-      .innerJoinAndSelect('e.classExercises', 'ce', 'ce.exercise_id = e.id')
+      .innerJoinAndSelect('e.classes_exercises', 'ce', 'ce.exercise_id = e.id')
       .leftJoinAndSelect(
-        'e.userExerciseResult',
+        'e.user_exercise_results',
         'uer',
         'uer.user_id = :userId',
         { userId },
@@ -78,9 +81,12 @@ export class ExerciseService {
   async getTotalExercises(userId: number): Promise<number> {
     const classesOfUser = await this.classService.getClassesOfUser(userId);
     const classIds = classesOfUser.map((classItem) => classItem.id);
+    if (classIds.length === 0) {
+      return 0;
+    }
     return await this.exerciseRepo
       .createQueryBuilder('e')
-      .innerJoinAndSelect('e.classExercises', 'ce')
+      .innerJoinAndSelect('e.classes_exercises', 'ce')
       .where('ce.class_id IN (:...classIds)', { classIds })
       .getCount();
   }

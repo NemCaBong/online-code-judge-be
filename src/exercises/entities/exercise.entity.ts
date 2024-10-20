@@ -27,7 +27,7 @@ export class Exercise {
   name: string;
 
   @OneToMany(() => ClassExercise, (classExercise) => classExercise.exercise)
-  classExercises: ClassExercise[];
+  classes_exercises: ClassExercise[];
 
   @OneToMany(
     () => UserExerciseResult,
@@ -36,7 +36,7 @@ export class Exercise {
       createForeignKeyConstraints: false,
     },
   )
-  userExerciseResult: UserExerciseResult[];
+  user_exercise_results: UserExerciseResult[];
 
   @OneToMany(
     () => ExerciseDetail,

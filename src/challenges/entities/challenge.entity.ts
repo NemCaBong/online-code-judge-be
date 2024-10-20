@@ -61,20 +61,20 @@ export class Challenge {
     (userChallengeResult) => userChallengeResult.challenge,
   )
   @JoinColumn()
-  userChallengeResults: UserChallengeResult[];
+  user_challenge_results: UserChallengeResult[];
 
   @OneToMany(
     () => ChallengeDetail,
     (challengeDetail) => challengeDetail.challenge,
     { createForeignKeyConstraints: false },
   )
-  challengeDetails: ChallengeDetail[];
+  challenge_details: ChallengeDetail[];
 
   @ManyToMany(() => Tag, (tag) => tag.challenges, {
     createForeignKeyConstraints: false,
   })
   @JoinTable({
-    name: 'challenge_tags', // Name of the join table
+    name: 'challenges_tags', // Name of the join table
     joinColumn: { name: 'challenge_id', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'tag_id', referencedColumnName: 'id' },
   })
@@ -83,7 +83,7 @@ export class Challenge {
   @OneToMany(() => TestCase, (testCase) => testCase.challenge, {
     createForeignKeyConstraints: false,
   })
-  testCases: TestCase[];
+  test_cases: TestCase[];
 
   @OneToMany(() => Hint, (hint) => hint.challenge, {
     createForeignKeyConstraints: false,

@@ -24,7 +24,7 @@ export class TestCase {
   @Column({ type: 'boolean', default: false })
   is_sampled: boolean;
 
-  @ManyToOne(() => Challenge, (challenge) => challenge.testCases, {
+  @ManyToOne(() => Challenge, (challenge) => challenge.test_cases, {
     createForeignKeyConstraints: false,
   })
   @JoinColumn({ name: 'challenge_id' })

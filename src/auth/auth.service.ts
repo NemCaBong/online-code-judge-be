@@ -27,6 +27,8 @@ export class AuthService {
       role: user.role,
     };
     return {
+      message: 'Success',
+      status_code: 201,
       access_token: await this.jwtService.signAsync(payload),
     };
   }

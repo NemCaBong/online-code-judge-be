@@ -26,7 +26,7 @@ export class User {
     () => UserChallengeResult,
     (userChallengeResult) => userChallengeResult.challenge,
   )
-  userChallengeResults: UserChallengeResult[];
+  user_challenge_results: UserChallengeResult[];
 
   @OneToMany(() => UserClass, (userClass) => userClass.user, {
     createForeignKeyConstraints: false,

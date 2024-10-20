@@ -9,6 +9,7 @@ export class TagController {
   async getAllTags() {
     return {
       message: 'Success',
+      status_code: 200,
       tags: await this.tagService.getAllTags(),
     };
   }

@@ -13,6 +13,7 @@ import { Public } from 'src/common/decorators/public.decorator';
 import { RoleGuard } from './guards/role.guard';
 import { Role } from 'src/common/decorators/role.decorator';
 import { RoleEnum } from 'src/common/enums/role.enum';
+import { LoginDto } from './dtos/login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -20,7 +21,7 @@ export class AuthController {
 
   @Public()
   @Post('login')
-  async login(@Body() loginDto: { email: string; password: string }) {
+  async login(@Body() loginDto: LoginDto) {
     const user = await this.authService.validateUser(
       loginDto.email,
       loginDto.password,
@@ -31,6 +32,7 @@ export class AuthController {
     return this.authService.login(user);
   }
 
+  @Public()
   @Post('signup')
   async signup(@Body() user: any) {
     return this.authService.signup(user);

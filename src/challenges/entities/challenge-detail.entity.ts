@@ -21,7 +21,7 @@ export class ChallengeDetail {
   @Column()
   challenge_id: number;
 
-  @ManyToOne(() => Challenge, (challenge) => challenge.challengeDetails, {
+  @ManyToOne(() => Challenge, (challenge) => challenge.challenge_details, {
     createForeignKeyConstraints: false,
   })
   @JoinColumn({ name: 'challenge_id' })

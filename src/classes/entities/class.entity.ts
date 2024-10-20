@@ -38,7 +38,7 @@ export class Class {
   teacher: User;
 
   @OneToMany(() => ClassExercise, (classExercise) => classExercise.class)
-  classesExercises: ClassExercise[];
+  classes_exercises: ClassExercise[];
 
   @OneToMany(() => UserClass, (userClass) => userClass.class, {
     createForeignKeyConstraints: false,
@@ -48,7 +48,7 @@ export class Class {
   @OneToMany(() => UserClass, (userClass) => userClass.class, {
     createForeignKeyConstraints: false,
   })
-  userClasses: UserClass[];
+  user_classes: UserClass[];
 
   @Column({ type: 'boolean', default: false })
   is_done: boolean;

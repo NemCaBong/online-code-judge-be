@@ -1,11 +1,7 @@
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Challenge } from './entities/challenge.entity';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
 import { UserChallengeResult } from './entities/user-challenge-result.entity';
 import * as AdmZip from 'adm-zip';
 import { TestCase } from './entities/test-case.entity';
@@ -21,22 +17,23 @@ import { SubmitPollDto } from './dtos/submit-poll.dto';
 import { Judge0Status } from 'src/common/enums/judge0-status.enum';
 import { SubmitChallengeDto } from './dtos/submit-challenge.dto';
 import { Judge0StatusDescription } from 'src/common/constants';
+import { DifficultyEnum } from 'src/common/enums/difficulty.enum';
+import { ChallengeStatusEnum } from 'src/common/enums/challenge-status.enum';
 
 @Injectable()
 export class ChallengesService {
   constructor(
     @InjectRepository(Challenge)
-    private readonly challengesRepository: Repository<Challenge>,
+    private readonly challengesRepo: Repository<Challenge>,
     @InjectRepository(UserChallengeResult)
-    private readonly userChallengeResultsRepository: Repository<UserChallengeResult>,
+    private readonly userChallengeResultsRepo: Repository<UserChallengeResult>,
     @InjectRepository(TestCase)
     private readonly testCaseRepo: Repository<TestCase>,
     private readonly dataSource: DataSource,
   ) {}
 
   async getAllChallenges(page: number = 1, limit: number = 10) {
-    const queryBuilder =
-      this.challengesRepository.createQueryBuilder('challenge');
+    const queryBuilder = this.challengesRepo.createQueryBuilder('challenge');
 
     const [challenges, total] = await queryBuilder
       .where('challenge.is_deleted = :isDeleted', { isDeleted: false })
@@ -56,64 +53,43 @@ export class ChallengesService {
     };
   }
 
-  async getAllChallengesWithUserStatus(
-    userId: number,
-    page: number = 1,
-    limit: number = 10,
-  ) {
-    const queryBuilder = this.challengesRepository
-      .createQueryBuilder('challenge')
+  async getAllChallengesWithUserStatus(userId: number) {
+    const queryBuilder = this.challengesRepo
+      .createQueryBuilder('c')
       .leftJoinAndSelect(
-        'challenge.userChallengeResults',
-        'userChallengeResult',
-        'userChallengeResult.user_id = :userId',
+        'c.user_challenge_results',
+        'ucr',
+        'ucr.user_id = :userId',
         { userId },
       )
+      .leftJoinAndSelect('c.tags', 'tags')
       .select([
-        'challenge.id',
-        'challenge.name',
-        'challenge.description',
-        'challenge.difficulty',
-        'challenge.slug',
-        // 'userChallengeResult.submission_id',
-        'challenge.created_at',
+        'c.id',
+        'c.name',
+        'c.difficulty',
+        'c.slug',
+        'c.created_at',
+        'tags.id',
+        'tags.name',
+        'ucr.status',
+        'c.accepted_results',
+        'c.total_attempts',
       ])
-      .where('challenge.is_deleted = :isDeleted', { isDeleted: false })
-      .orderBy('challenge.created_at', 'DESC')
-      .take(limit)
-      .skip((page - 1) * limit);
-
-    const [challenges, total] = await queryBuilder.getManyAndCount();
-
-    const formattedChallenges = challenges.map((challenge) => ({
-      ...challenge,
-      status: challenge.userChallengeResults?.[0]?.code
-        ? 'done'
-        : challenge.userChallengeResults?.[0]
-          ? 'to-do'
-          : 'not-done',
-    }));
-
-    return {
-      data: formattedChallenges,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+      .where('c.is_deleted = :isDeleted', { isDeleted: false })
+      .orderBy('c.created_at', 'DESC');
+    const challenges = await queryBuilder.getMany();
+    return challenges;
   }
 
   async countAllChallengesAndUsersSubmitted(userId: number) {
     const [challengesByDifficulty, usersSubmittedByDifficulty] =
       await Promise.all([
-        this.challengesRepository
+        this.challengesRepo
           .createQueryBuilder('challenge')
           .select('challenge.difficulty, COUNT(challenge.id)', 'total')
           .groupBy('challenge.difficulty')
           .getRawMany(),
-        this.userChallengeResultsRepository
+        this.userChallengeResultsRepo
           .createQueryBuilder('ucr')
           .innerJoin(Challenge, 'challenge', 'challenge.id = ucr.challenge_id')
           .select('challenge.difficulty, COUNT(ucr.id)', 'total')
@@ -150,20 +126,20 @@ export class ChallengesService {
   }
 
   async getTodoChallenges(userId: number) {
-    const queryBuilder = this.userChallengeResultsRepository
-      .createQueryBuilder('ucr')
-      .innerJoinAndSelect('ucr.challenge', 'c')
+    const queryBuilder = this.challengesRepo
+      .createQueryBuilder('c')
+      .innerJoinAndSelect('c.user_challenge_results', 'ucr')
       .select([
         'ucr.id',
-        'c.id as challenge_id',
+        'c.id',
         'c.name',
         'c.slug',
+        'c.difficulty',
         'ucr.created_at',
       ])
       .where('ucr.user_id = :userId', { userId })
-      .andWhere('ucr.code IS NULL')
-      .orderBy('ucr.created_at', 'DESC')
-      .take(10);
+      .andWhere('ucr.status = :status', { status: ChallengeStatusEnum.TODO })
+      .orderBy('ucr.created_at', 'DESC');
 
     const todos = await queryBuilder.getMany();
     console.log(todos);
@@ -171,7 +147,7 @@ export class ChallengesService {
   }
 
   async getDoneChallenges(userId: number): Promise<number> {
-    return await this.userChallengeResultsRepository
+    return await this.userChallengeResultsRepo
       .createQueryBuilder('ucr')
       .innerJoinAndSelect('ucr.challenge', 'c')
       .select([
@@ -187,7 +163,7 @@ export class ChallengesService {
   }
 
   async getTotalChallenges(): Promise<number> {
-    return await this.challengesRepository.createQueryBuilder('c').getCount();
+    return await this.challengesRepo.createQueryBuilder('c').getCount();
   }
 
   async uploadTestCases(
@@ -291,18 +267,13 @@ export class ChallengesService {
   }
 
   async getChallenge(challengeSlug: string) {
-    const queryBuilder =
-      this.challengesRepository.createQueryBuilder('challenge');
+    const queryBuilder = this.challengesRepo.createQueryBuilder('challenge');
 
     const challenge = await queryBuilder
       .leftJoinAndSelect('challenge.hints', 'hints', 'hints.is_deleted = false')
       .leftJoinAndSelect('challenge.tags', 'tags', 'tags.is_deleted = false')
-      .leftJoinAndSelect(
-        'challenge.testCases',
-        'testCases',
-        'testCases.is_sampled = true',
-      )
-      .leftJoinAndSelect('challenge.challengeDetails', 'challengeDetails')
+      .leftJoinAndSelect('challenge.test_cases', 'tc', 'tc.is_sampled = true')
+      .leftJoinAndSelect('challenge.challenge_details', 'cd')
       .where('challenge.slug = :slug', { slug: challengeSlug })
       .select([
         'challenge.id',
@@ -316,18 +287,18 @@ export class ChallengesService {
         'hints.answer',
         'tags.id',
         'tags.name',
-        'testCases.id',
-        'testCases.input',
-        'testCases.expected_output',
-        'challengeDetails.id',
-        'challengeDetails.language_id',
-        'challengeDetails.boilerplate_code',
+        'tc.id',
+        'tc.input',
+        'tc.expected_output',
+        'cd.id',
+        'cd.language_id',
+        'cd.boilerplate_code',
       ])
       .getOne();
 
-    if (challenge && challenge.testCases) {
+    if (challenge && challenge.test_cases) {
       // Sort test cases by their id
-      challenge.testCases.sort((a, b) => a.id - b.id);
+      challenge.test_cases.sort((a, b) => a.id - b.id);
     }
 
     return challenge;
@@ -337,7 +308,7 @@ export class ChallengesService {
     challenge_slug: string,
     runChallengeDto: RunChallengeDto,
   ) {
-    const challenge = await this.challengesRepository
+    const challenge = await this.challengesRepo
       .createQueryBuilder('challenge')
       .where('challenge.slug = :slug', { slug: challenge_slug })
       .getOne();
@@ -399,7 +370,7 @@ export class ChallengesService {
         testCaseId: testCases[index].id,
       }));
 
-      return { message: 'Success', data: result };
+      return { message: 'Success', result };
     } catch (error) {
       throw new BadRequestException(
         `Error processing submissions: ${error.message}`,
@@ -451,33 +422,27 @@ export class ChallengesService {
         )?.testCaseId;
         const testCase = testCases.find((tc) => tc.id === testCaseId);
         if (statusId >= 5 && statusId <= 14) {
+          const { stdout, stderr, ...submissionData } = submission;
+
           return {
             message: 'Error',
             error: Judge0StatusDescription[statusId],
             statusCode: 400,
-            submission,
+            submission: {
+              stderr: stderr
+                ? Buffer.from(stderr, 'base64').toString('utf-8')
+                : null,
+              stdout: stdout
+                ? Buffer.from(stdout, 'base64').toString('utf-8')
+                : null,
+              ...submissionData,
+            },
             errorTestCase: testCase,
           };
         }
       }
-
-      const wrongAnswer = submissions.find(
-        (submission) => submission.status?.id === Judge0Status.WRONG_ANSWER,
-      );
-      if (wrongAnswer) {
-        return {
-          message: 'Error',
-          error: Judge0StatusDescription[Judge0Status.WRONG_ANSWER],
-          statusCode: 400,
-          submissions,
-        };
-      }
-
-      // Process and return the results if all are ready
+      // Process the results
       const results = submissions.map((submission) => {
-        const pollData = runPollDto.runPoll.find(
-          (item) => item.token === submission.token,
-        );
         const { stdout, stderr, ...submissionData } = submission;
         return {
           stderr: stderr
@@ -490,6 +455,19 @@ export class ChallengesService {
         };
       });
 
+      // Check for WRONG_ANSWER status
+      const wrongAnswer = submissions.find(
+        (submission) => submission.status?.id === Judge0Status.WRONG_ANSWER,
+      );
+      if (wrongAnswer) {
+        return {
+          message: 'Error',
+          error: Judge0StatusDescription[Judge0Status.WRONG_ANSWER],
+          statusCode: 400,
+          submissions: results,
+        };
+      }
+      // If Accepted, return the results
       return { message: 'Success', submissions: results, statusCode: 200 };
     } catch (error) {
       throw new BadRequestException(
@@ -505,7 +483,7 @@ export class ChallengesService {
     const { code, languageId } = submitChallengeDto;
 
     // Fetch the challenge by slug
-    const challenge = await this.challengesRepository
+    const challenge = await this.challengesRepo
       .createQueryBuilder('challenge')
       .where('challenge.slug = :slug', { slug: challengeSlug })
       .getOne();
@@ -561,7 +539,7 @@ export class ChallengesService {
           testCaseId: testCase.id,
         };
       });
-      return { message: 'Success', data: res };
+      return { message: 'Success', result: res };
     } catch (error) {
       throw new BadRequestException(
         `Error processing submissions: ${error.message}`,
@@ -570,7 +548,7 @@ export class ChallengesService {
   }
 
   async pollingForSubmission(
-    challengeSlug: string,
+    // challengeSlug: string,
     submitPollDto: SubmitPollDto,
   ) {
     // sort submitPollDto by testCaseId
@@ -613,8 +591,7 @@ export class ChallengesService {
           (tc) => tc.id === failedTestCase?.testCaseId,
         );
         const { stdout, stderr, message, ...submissionData } = submission;
-        console.log(submissionData);
-        throw new BadRequestException({
+        return {
           message: 'Error',
           error: Judge0StatusDescription[id],
           statusCode: 400,
@@ -631,7 +608,7 @@ export class ChallengesService {
             ...submissionData,
           },
           errorTestCase: testCase,
-        });
+        };
       }
     }
 
@@ -653,5 +630,59 @@ export class ChallengesService {
       averageMemory,
       statusCode: 200,
     };
+  }
+
+  async getTotalMediumChallenges() {
+    const totalChallenges = await this.challengesRepo.count({
+      where: { difficulty: DifficultyEnum.MEDIUM },
+    });
+    return totalChallenges;
+  }
+
+  async getTotalHardChallenges() {
+    const totalChallenges = await this.challengesRepo.count({
+      where: { difficulty: DifficultyEnum.HARD },
+    });
+    return totalChallenges;
+  }
+
+  async getTotalEasyChallenges() {
+    const totalChallenges = await this.challengesRepo.count({
+      where: { difficulty: DifficultyEnum.EASY },
+    });
+    return totalChallenges;
+  }
+
+  async getTotalDoneMediumChalenges(userId: number) {
+    const totalChallenges = await this.userChallengeResultsRepo.count({
+      where: {
+        user: { id: userId },
+        challenge: { difficulty: DifficultyEnum.MEDIUM },
+        status: ChallengeStatusEnum.DONE,
+      },
+    });
+    return totalChallenges;
+  }
+
+  async getTotalDoneHardChalenges(userId: number) {
+    const totalChallenges = await this.userChallengeResultsRepo.count({
+      where: {
+        user: { id: userId },
+        challenge: { difficulty: DifficultyEnum.HARD },
+        status: ChallengeStatusEnum.DONE,
+      },
+    });
+    return totalChallenges;
+  }
+
+  async getTotalDoneEasyChalenges(userId: number) {
+    const totalChallenges = await this.userChallengeResultsRepo.count({
+      where: {
+        user: { id: userId },
+        challenge: { difficulty: DifficultyEnum.EASY },
+        status: ChallengeStatusEnum.DONE,
+      },
+    });
+    return totalChallenges;
   }
 }

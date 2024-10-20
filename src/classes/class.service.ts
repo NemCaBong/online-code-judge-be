@@ -18,7 +18,7 @@ export class ClassService {
   async getClassesOfUser(userId: number): Promise<Class[]> {
     return await this.classRepo
       .createQueryBuilder('c')
-      .innerJoinAndSelect('c.userClasses', 'uc', 'uc.class_id = c.id')
+      .innerJoinAndSelect('c.user_classes', 'uc', 'uc.class_id = c.id')
       .innerJoinAndSelect('c.teacher', 't', 't.id = c.teacher_id')
       .where('uc.user_id = :userId', { userId })
       .orderBy('c.created_at', 'DESC')
@@ -27,6 +27,7 @@ export class ClassService {
         'c.name',
         'c.created_at',
         'c.total_students',
+        'c.is_done',
         'c.slug',
         't.id',
         't.first_name',
@@ -39,7 +40,7 @@ export class ClassService {
   async getNumberOfDoneClassesOfUser(userId: number): Promise<number> {
     return await this.classRepo
       .createQueryBuilder('c')
-      .innerJoinAndSelect('c.userClasses', 'uc', 'uc.class_id = c.id')
+      .innerJoinAndSelect('c.user_classes', 'uc', 'uc.class_id = c.id')
       .where('uc.user_id = :userId', { userId })
       .andWhere('c.is_done = :isDone', { isDone: true })
       .getCount();
@@ -48,7 +49,7 @@ export class ClassService {
   async getTotalClassesOfUser(userId: number): Promise<number> {
     return await this.classRepo
       .createQueryBuilder('c')
-      .innerJoinAndSelect('c.userClasses', 'uc', 'uc.class_id = c.id')
+      .innerJoinAndSelect('c.user_classes', 'uc', 'uc.class_id = c.id')
       .where('uc.user_id = :userId', { userId })
       .getCount();
   }
@@ -93,5 +94,27 @@ export class ClassService {
       // Release the query runner
       await queryRunner.release();
     }
+  }
+
+  async getAllClassesOfUser(userId: number): Promise<Class[]> {
+    console.log(userId);
+    return await this.classRepo
+      .createQueryBuilder('c')
+      .innerJoinAndSelect('c.user_classes', 'uc', 'uc.class_id = c.id')
+      .innerJoinAndSelect('c.teacher', 't')
+      .where('uc.user_id = :userId', { userId })
+      .orderBy('c.created_at', 'DESC')
+      .select([
+        'c.id',
+        'c.name',
+        'c.created_at',
+        'c.total_students',
+        'c.slug',
+        't.id',
+        't.first_name',
+        't.last_name',
+        't.email',
+      ])
+      .getMany();
   }
 }

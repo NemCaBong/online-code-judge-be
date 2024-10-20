@@ -1,22 +1,24 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ExerciseService } from './exercise.service';
 import { CreateExerciseDto } from './dtos/create-exercise.dto';
+import { CurrentUser } from 'src/decorators/current-user.decorator';
+import { User } from 'src/users/user.entity';
 
 @Controller('exercises')
 export class ExerciseController {
   constructor(private readonly exerciseService: ExerciseService) {}
 
-  @Get('done-and-total/:id')
-  async getDoneAndTotalExercises(
-    @Param('id') userId: number,
-  ): Promise<{ doneExercises: number; totalExercises: number }> {
-    const [doneExercises, totalExercises] = await Promise.all([
-      this.exerciseService.getNumberOfDoneExercises(userId),
-      this.exerciseService.getTotalExercises(userId),
+  @Get('/info/done-and-total')
+  async getDoneAndTotalExercises(@CurrentUser() user: User) {
+    const [done, total] = await Promise.all([
+      this.exerciseService.getNumberOfDoneExercises(user.id),
+      this.exerciseService.getTotalExercises(user.id),
     ]);
     return {
-      doneExercises,
-      totalExercises,
+      message: 'Success',
+      statusCode: 200,
+      done,
+      total,
     };
   }
 
@@ -26,6 +28,17 @@ export class ExerciseController {
     return {
       message: 'Success',
       statusCode: 201,
+    };
+  }
+
+  @Get('/users/soon-due')
+  async getSoonDueExercises(@CurrentUser() user: User) {
+    const soon_due_exercises =
+      await this.exerciseService.getUserSoonDueExercises(user.id);
+    return {
+      message: 'Success',
+      statusCode: 200,
+      soon_due_exercises,
     };
   }
 }

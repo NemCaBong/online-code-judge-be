@@ -11,12 +11,11 @@ export class DashboardService {
 
   async getDashboard() {
     const classes = await this.classService.getClassesOfUser(1);
-    const soonDueExercises = await this.exerciseService.getUserExercises(1);
+    const soonDueExercises =
+      await this.exerciseService.getUserSoonDueExercises(1);
     return {
       classes,
       soonDueExercises,
     };
-    // const test = await this.exerciseService.getDoneAndTotalExercises(1);
-    // return test;
   }
 }

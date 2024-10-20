@@ -17,13 +17,13 @@ export class UserChallengeResult {
   @Column({ type: 'uuid', nullable: true })
   submission_id: string;
 
-  @ManyToOne(() => User, (user) => user.userChallengeResults, {
+  @ManyToOne(() => User, (user) => user.user_challenge_results, {
     createForeignKeyConstraints: false,
   })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @ManyToOne(() => Challenge, (challenge) => challenge.userChallengeResults, {
+  @ManyToOne(() => Challenge, (challenge) => challenge.user_challenge_results, {
     createForeignKeyConstraints: false,
   })
   @JoinColumn({ name: 'challenge_id' })

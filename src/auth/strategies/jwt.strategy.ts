@@ -15,6 +15,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   // This method will be called when the token is valid and the user is authenticated
   async validate(payload: any) {
-    return { id: payload.userId, email: payload.email, role: payload.role };
+    return { id: payload.id, email: payload.email, role: payload.role };
   }
 }
