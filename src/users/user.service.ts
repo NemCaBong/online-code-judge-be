@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThanOrEqual, Repository } from 'typeorm';
 import { User } from './user.entity';
 import * as XLSX from 'xlsx';
 import * as bcrypt from 'bcrypt';
+import { UserRole } from 'src/common/enums/user-role.enum';
+import { RoleEnum } from 'src/common/enums/role.enum';
 
 @Injectable()
 export class UserService {
@@ -49,9 +51,30 @@ export class UserService {
         password: passwd,
       };
     });
-    console.log(users);
     const data = this.userRepo.create(users);
     // Save users to the database
     await this.userRepo.save(data);
+  }
+
+  async countTotalStudents(): Promise<number> {
+    return await this.userRepo.count({ where: { role: UserRole.STUDENT } });
+  }
+
+  async countStudentsUntilLastMonth(): Promise<number> {
+    const lastMonth = new Date();
+    lastMonth.setDate(0);
+    lastMonth.setHours(23, 59, 59, 999);
+    return await this.userRepo.count({
+      where: {
+        created_at: LessThanOrEqual(lastMonth),
+        role: UserRole.STUDENT,
+      },
+    });
+  }
+
+  async getAllTeachers(): Promise<User[]> {
+    return await this.userRepo.find({
+      where: { role: RoleEnum.TEACHER },
+    });
   }
 }

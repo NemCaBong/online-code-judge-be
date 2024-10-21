@@ -54,4 +54,18 @@ export class ClassController {
       classes,
     };
   }
+
+  @Get('info/total-and-last-month')
+  async getTotalClassesAndLastMonth() {
+    const [total, lastMonth] = await Promise.all([
+      this.classService.countClassesInSystem(),
+      this.classService.countClassesUntilLastMonth(),
+    ]);
+    return {
+      message: 'Success',
+      statusCode: 200,
+      total,
+      last_month_total: lastMonth,
+    };
+  }
 }

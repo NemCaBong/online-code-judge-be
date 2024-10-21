@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, LessThanOrEqual, Repository } from 'typeorm';
 import { UserClass } from 'src/classes/entities/user-class.entity';
 import { Exercise } from './entities/exercise.entity';
 import { ClassService } from '../classes/class.service';
@@ -133,5 +133,18 @@ export class ExerciseService {
       // Release the query runner
       await queryRunner.release();
     }
+  }
+
+  async countExercisesInSystem(): Promise<number> {
+    return await this.exerciseRepo.count();
+  }
+
+  async countExercisesUntilLastMonth(): Promise<number> {
+    const lastMonth = new Date();
+    lastMonth.setDate(0);
+    lastMonth.setHours(23, 59, 59, 999);
+    return await this.exerciseRepo.count({
+      where: { created_at: LessThanOrEqual(lastMonth) },
+    });
   }
 }

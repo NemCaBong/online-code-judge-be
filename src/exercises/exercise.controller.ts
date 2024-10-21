@@ -9,7 +9,7 @@ export class ExerciseController {
   constructor(private readonly exerciseService: ExerciseService) {}
 
   @Get('/info/done-and-total')
-  async getDoneAndTotalExercises(@CurrentUser() user: User) {
+  async getDoneAndTotalUserExercises(@CurrentUser() user: User) {
     const [done, total] = await Promise.all([
       this.exerciseService.getNumberOfDoneExercises(user.id),
       this.exerciseService.getTotalExercises(user.id),
@@ -39,6 +39,20 @@ export class ExerciseController {
       message: 'Success',
       statusCode: 200,
       soon_due_exercises,
+    };
+  }
+
+  @Get('info/total-and-last-month')
+  async countTotalAndUntilLastMonth() {
+    const [total, lastMonth] = await Promise.all([
+      this.exerciseService.countExercisesInSystem(),
+      this.exerciseService.countExercisesUntilLastMonth(),
+    ]);
+    return {
+      message: 'Success',
+      statusCode: 200,
+      total,
+      last_month_total: lastMonth,
     };
   }
 }

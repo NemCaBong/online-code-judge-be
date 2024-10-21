@@ -37,7 +37,7 @@ export class ChallengesController {
     const challenges =
       await this.challengesService.getAllChallengesWithUserStatus(userId);
     const doneEasy =
-      await this.challengesService.getTotalDoneEasyChalenges(userId);
+      await this.challengesService.getTotalDoneEasyChallenges(userId);
     const todos = await this.challengesService.getTodoChallenges(userId);
     return {
       data: {
@@ -140,7 +140,7 @@ export class ChallengesController {
   @Get('/info/done-and-total-medium')
   async getDoneAndTotalMediumChallenges(@CurrentUser() user: User) {
     const [done, total] = await Promise.all([
-      this.challengesService.getTotalDoneMediumChalenges(user.id),
+      this.challengesService.getTotalDoneMediumChallenges(user.id),
       this.challengesService.getTotalMediumChallenges(),
     ]);
     return {
@@ -154,7 +154,7 @@ export class ChallengesController {
   @Get('/info/done-and-total-hard')
   async getDoneAndTotalHardChallenges(@CurrentUser() user: User) {
     const [done, total] = await Promise.all([
-      this.challengesService.getTotalDoneHardChalenges(user.id),
+      this.challengesService.getTotalDoneHardChallenges(user.id),
       this.challengesService.getTotalHardChallenges(),
     ]);
     return {
@@ -168,7 +168,7 @@ export class ChallengesController {
   @Get('/info/done-and-total-easy')
   async getDoneAndTotalEasyChallenges(@CurrentUser() user: User) {
     const [done, total] = await Promise.all([
-      this.challengesService.getTotalDoneEasyChalenges(user.id),
+      this.challengesService.getTotalDoneEasyChallenges(user.id),
       this.challengesService.getTotalEasyChallenges(),
     ]);
     return {
@@ -197,6 +197,41 @@ export class ChallengesController {
       message: 'Success',
       status_code: 200,
       challenges,
+    };
+  }
+
+  @Get('info/total-and-last-month')
+  async countTotalAndLastMonth() {
+    const [total, lastMonthCount] = await Promise.all([
+      this.challengesService.getTotalChallenges(),
+      this.challengesService.countUntilLastMonth(),
+    ]);
+    return {
+      message: 'Success',
+      status_code: 200,
+      total,
+      last_month_total: lastMonthCount,
+    };
+  }
+
+  @Get('info/total-attempts-by-difficulty')
+  async countTotalAttemptsByDifficulty() {
+    const res = await this.challengesService.countTotalAttemptsByDifficulty();
+    return {
+      message: 'Success',
+      status_code: 200,
+      ...res,
+    };
+  }
+
+  @Get('info/submissions-last-quaterly')
+  async countSubmissionsLastQuaterly() {
+    const statistics =
+      await this.challengesService.getResultsStatisticsLastSixMonths();
+    return {
+      message: 'Success',
+      status_code: 200,
+      statistics,
     };
   }
 }

@@ -41,15 +41,18 @@ export class UserChallengeResult {
   @Column({ type: 'integer', nullable: true })
   language_id: number;
 
-  @Column({ type: 'integer', nullable: true })
-  time_taken: number;
+  @Column({ type: 'numeric', precision: 10, scale: 2, nullable: true })
+  time: number;
 
   @Column({ type: 'integer', nullable: true })
-  memory_taken: number;
+  memory: number;
 
   @Column({
     type: 'timestamp',
     nullable: true,
   })
   submitted_at: Date;
+
+  @Column({ type: 'integer', nullable: true })
+  status_id: number;
 }

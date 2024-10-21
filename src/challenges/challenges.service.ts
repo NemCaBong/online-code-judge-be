@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Challenge } from './entities/challenge.entity';
-import { DataSource, In, IsNull, Not, Repository } from 'typeorm';
+import { DataSource, In, LessThanOrEqual, Repository } from 'typeorm';
 import { UserChallengeResult } from './entities/user-challenge-result.entity';
 import * as AdmZip from 'adm-zip';
 import { TestCase } from './entities/test-case.entity';
@@ -18,7 +18,7 @@ import { Judge0Status } from 'src/common/enums/judge0-status.enum';
 import { SubmitChallengeDto } from './dtos/submit-challenge.dto';
 import { Judge0StatusDescription } from 'src/common/constants';
 import { DifficultyEnum } from 'src/common/enums/difficulty.enum';
-import { ChallengeStatusEnum } from 'src/common/enums/challenge-status.enum';
+import { ChallengeResultStatusEnum } from 'src/common/enums/challenge-status.enum';
 
 @Injectable()
 export class ChallengesService {
@@ -138,7 +138,9 @@ export class ChallengesService {
         'ucr.created_at',
       ])
       .where('ucr.user_id = :userId', { userId })
-      .andWhere('ucr.status = :status', { status: ChallengeStatusEnum.TODO })
+      .andWhere('ucr.status = :status', {
+        status: ChallengeResultStatusEnum.TODO,
+      })
       .orderBy('ucr.created_at', 'DESC');
 
     const todos = await queryBuilder.getMany();
@@ -653,36 +655,114 @@ export class ChallengesService {
     return totalChallenges;
   }
 
-  async getTotalDoneMediumChalenges(userId: number) {
-    const totalChallenges = await this.userChallengeResultsRepo.count({
-      where: {
-        user: { id: userId },
-        challenge: { difficulty: DifficultyEnum.MEDIUM },
-        status: ChallengeStatusEnum.DONE,
-      },
-    });
+  async getTotalDoneMediumChallenges(userId: number) {
+    const totalChallenges = await this.userChallengeResultsRepo
+      .createQueryBuilder('ucr')
+      .innerJoin('ucr.challenge', 'challenge')
+      .where('ucr.user_id = :userId', { userId })
+      .andWhere('challenge.difficulty = :difficulty', {
+        difficulty: DifficultyEnum.MEDIUM,
+      })
+      .andWhere('ucr.status = :status', {
+        status: ChallengeResultStatusEnum.DONE,
+      })
+      .groupBy('ucr.challenge_id')
+      .getCount();
     return totalChallenges;
   }
 
-  async getTotalDoneHardChalenges(userId: number) {
-    const totalChallenges = await this.userChallengeResultsRepo.count({
-      where: {
-        user: { id: userId },
-        challenge: { difficulty: DifficultyEnum.HARD },
-        status: ChallengeStatusEnum.DONE,
-      },
-    });
-    return totalChallenges;
+  async getTotalDoneHardChallenges(userId: number) {
+    const totalChallenges = await this.userChallengeResultsRepo
+      .createQueryBuilder('ucr')
+      .innerJoin('ucr.challenge', 'challenge')
+      .where('ucr.user_id = :userId', { userId })
+      .andWhere('challenge.difficulty = :difficulty', {
+        difficulty: DifficultyEnum.HARD,
+      })
+      .andWhere('ucr.status = :status', {
+        status: ChallengeResultStatusEnum.DONE,
+      })
+      .select('COUNT(DISTINCT ucr.challenge_id)', 'total')
+      .getRawOne();
+
+    return parseInt(totalChallenges.total, 10);
   }
 
-  async getTotalDoneEasyChalenges(userId: number) {
-    const totalChallenges = await this.userChallengeResultsRepo.count({
+  async getTotalDoneEasyChallenges(userId: number) {
+    const totalChallenges = await this.userChallengeResultsRepo
+      .createQueryBuilder('ucr')
+      .innerJoin('ucr.challenge', 'challenge')
+      .where('ucr.user_id = :userId', { userId })
+      .andWhere('challenge.difficulty = :difficulty', {
+        difficulty: DifficultyEnum.EASY,
+      })
+      .andWhere('ucr.status = :status', {
+        status: ChallengeResultStatusEnum.DONE,
+      })
+      .select('COUNT(DISTINCT ucr.challenge_id)', 'total')
+      .getRawOne();
+
+    return parseInt(totalChallenges.total, 10);
+  }
+
+  async countUntilLastMonth(): Promise<number> {
+    const lastMonthEnd = new Date();
+    lastMonthEnd.setMonth(lastMonthEnd.getMonth() - 1);
+    lastMonthEnd.setHours(23, 59, 59, 999);
+    return await this.userChallengeResultsRepo.count({
       where: {
-        user: { id: userId },
-        challenge: { difficulty: DifficultyEnum.EASY },
-        status: ChallengeStatusEnum.DONE,
+        created_at: LessThanOrEqual(lastMonthEnd),
       },
     });
-    return totalChallenges;
+  }
+
+  async countTotalAttemptsByDifficulty(): Promise<{
+    easy: number;
+    medium: number;
+    hard: number;
+  }> {
+    const res = await this.challengesRepo
+      .createQueryBuilder('challenge')
+      .select('challenge.difficulty', 'difficulty')
+      .addSelect('SUM(challenge.total_attempts)', 'totalAttempts')
+      .groupBy('challenge.difficulty')
+      .getRawMany();
+
+    const easy = parseInt(
+      res.find((item) => item.difficulty === DifficultyEnum.EASY)
+        ?.totalAttempts || '0',
+    );
+    const medium = parseInt(
+      res.find((item) => item.difficulty === DifficultyEnum.MEDIUM)
+        ?.totalAttempts || '0',
+    );
+    const hard = parseInt(
+      res.find((item) => item.difficulty === DifficultyEnum.HARD)
+        ?.totalAttempts || '0',
+    );
+    return { easy, medium, hard };
+  }
+
+  async getResultsStatisticsLastSixMonths() {
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 5);
+    startDate.setDate(1);
+    startDate.setHours(0, 0, 0, 0);
+
+    const statistic = await this.challengesRepo
+      .createQueryBuilder('c')
+      .leftJoin('c.user_challenge_results', 'ucr')
+      .select(
+        "TRIM(TO_CHAR(DATE_TRUNC('month', ucr.created_at), 'Month'))",
+        'month',
+      )
+      .addSelect('COUNT(CASE WHEN ucr.status_id = 3 THEN 1 END)', 'accept')
+      .addSelect('COUNT(ucr.id)', 'total')
+      .where('ucr.created_at >= :startDate', { startDate })
+      .groupBy('month')
+      .orderBy('month', 'DESC')
+      .getRawMany();
+
+    return statistic;
   }
 }

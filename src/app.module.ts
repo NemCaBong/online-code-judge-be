@@ -12,14 +12,14 @@ import { DashboardService } from './dashboard/dashboard.service';
 import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TagModule } from './tags/tag.module';
-import { UserModule } from './users/users.module';
+import { UserModule } from './users/user.module';
 
 @Module({
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: 'localhost',
-      port: 5432,
+      port: 8000,
       username: 'judge0',
       password: '12345',
       database: 'judge0',
