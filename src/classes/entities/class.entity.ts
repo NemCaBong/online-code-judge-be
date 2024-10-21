@@ -9,6 +9,7 @@ import {
 import { User } from '../../users/user.entity';
 import { ClassExercise } from './class-exercise.entity';
 import { UserClass } from './user-class.entity';
+import { PostEntity } from './post.entity';
 
 @Entity('classes')
 export class Class {
@@ -52,4 +53,9 @@ export class Class {
 
   @Column({ type: 'boolean', default: false })
   is_done: boolean;
+
+  @OneToMany(() => PostEntity, (post) => post.class, {
+    createForeignKeyConstraints: false,
+  })
+  posts: PostEntity[];
 }

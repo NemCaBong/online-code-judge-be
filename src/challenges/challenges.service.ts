@@ -763,6 +763,22 @@ export class ChallengesService {
       .orderBy('month', 'DESC')
       .getRawMany();
 
-    return statistic;
+    // Generate array of last six months
+    const lastSixMonths = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      return d.toLocaleString('default', { month: 'long' });
+    }).reverse();
+
+    // Merge statistic with last six months
+    const result = lastSixMonths.map((month) => {
+      const data = statistic.find((s) => s.month.trim() === month);
+      return {
+        month,
+        accept: data ? parseInt(data.accept) : 0,
+        total: data ? parseInt(data.total) : 0,
+      };
+    });
+    return result;
   }
 }

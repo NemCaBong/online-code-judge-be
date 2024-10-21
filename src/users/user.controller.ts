@@ -12,9 +12,13 @@ import { FileInterceptor } from '@nestjs/platform-express';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Get('/students-list')
+  @Get('students/list')
   async getAllStudents() {
-    return await this.userService.getAllStudents();
+    return {
+      message: 'Success',
+      statusCode: 200,
+      students: await this.userService.getAllStudents(),
+    };
   }
 
   @Post('/create-from-xlsx')
@@ -25,7 +29,7 @@ export class UserController {
   }
 
   @Get('info/total-and-last-month')
-  async countTotalUsersAndLastMonth() {
+  async countTotalStudentsAndLastMonth() {
     const [total, lastMonth] = await Promise.all([
       this.userService.countTotalStudents(),
       this.userService.countStudentsUntilLastMonth(),
@@ -38,7 +42,7 @@ export class UserController {
     };
   }
 
-  @Get('teachers-list')
+  @Get('teachers/list')
   async getAllTeachers() {
     return {
       message: 'Success',

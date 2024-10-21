@@ -130,4 +130,38 @@ export class ClassService {
       where: { created_at: LessThanOrEqual(lastMonth) },
     });
   }
+
+  async getPosts(classSlug: string): Promise<Class> {
+    return await this.classRepo
+      .createQueryBuilder('c')
+      .innerJoinAndSelect('c.posts', 'p')
+      .where('c.slug = :slug', { slug: classSlug })
+      .orderBy('p.created_at', 'DESC')
+      .select(['p.id', 'p.content', 'p.created_at'])
+      .execute();
+  }
+
+  async getAClass(classSlug: string): Promise<Class> {
+    return await this.classRepo
+      .createQueryBuilder('c')
+      .innerJoinAndSelect('c.teacher', 't')
+      .leftJoinAndSelect('c.posts', 'p')
+      .where('c.slug = :slug', { slug: classSlug })
+      .select([
+        'c.id',
+        'c.name',
+        'c.slug',
+        'c.total_students',
+        'c.created_at',
+        'c.is_done',
+        't.id',
+        't.first_name',
+        't.last_name',
+        't.email',
+        'p.id',
+        'p.content',
+        'p.created_at',
+      ])
+      .getOne();
+  }
 }

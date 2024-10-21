@@ -234,4 +234,34 @@ export class ChallengesController {
       statistics,
     };
   }
+
+  @Get('info/total-medium')
+  async countTotalMediumChallenges() {
+    const total = await this.challengesService.getTotalMediumChallenges();
+    return {
+      message: 'Success',
+      status_code: 200,
+      total,
+    };
+  }
+
+  @Get('info/total-hard')
+  async countTotalHardChallenges() {
+    const total = await this.challengesService.getTotalHardChallenges();
+    return {
+      message: 'Success',
+      status_code: 200,
+      total,
+    };
+  }
+
+  @Get('info/total-easy')
+  async countTotalEasyChallenges() {
+    const total = await this.challengesService.getTotalEasyChallenges();
+    return {
+      message: 'Success',
+      status_code: 200,
+      total,
+    };
+  }
 }

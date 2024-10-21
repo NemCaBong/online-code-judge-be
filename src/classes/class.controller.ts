@@ -19,7 +19,7 @@ export class ClassController {
     };
   }
 
-  @Get('/info/done-and-total')
+  @Get('info/done-and-total')
   async getDoneAndTotalClasses(@CurrentUser() user: User) {
     const [done, total] = await Promise.all([
       this.classService.getNumberOfDoneClassesOfUser(user.id),
@@ -42,7 +42,7 @@ export class ClassController {
     };
   }
 
-  @Get('/users')
+  @Get('users')
   async getClassUsers(
     @CurrentUser() user: User,
     @Query() query: { page: number },
@@ -66,6 +66,16 @@ export class ClassController {
       statusCode: 200,
       total,
       last_month_total: lastMonth,
+    };
+  }
+
+  @Get(':classSlug')
+  async getAClass(@Param('classSlug') classSlug: string) {
+    const lookingClass = await this.classService.getAClass(classSlug);
+    return {
+      message: 'Success',
+      statusCode: 200,
+      class: lookingClass,
     };
   }
 }
