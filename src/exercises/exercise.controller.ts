@@ -55,4 +55,15 @@ export class ExerciseController {
       last_month_total: lastMonth,
     };
   }
+
+  @Get('users/classes/:classSlug/score')
+  async getUserClassScores(
+    @CurrentUser() user: User,
+    @Param('classSlug') classSlug: string,
+  ) {
+    return await this.exerciseService.getScoreOfUserInAClass(
+      user.id,
+      classSlug,
+    );
+  }
 }

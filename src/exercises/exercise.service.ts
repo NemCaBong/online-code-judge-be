@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, LessThanOrEqual, Repository } from 'typeorm';
 import { UserClass } from 'src/classes/entities/user-class.entity';
@@ -146,5 +146,29 @@ export class ExerciseService {
     return await this.exerciseRepo.count({
       where: { created_at: LessThanOrEqual(lastMonth) },
     });
+  }
+
+  async getScoreOfUserInAClass(userId: number, classSlug: string) {
+    const classBySlug = await this.classService.getAClass(classSlug);
+    if (!classBySlug) {
+      throw new BadRequestException('Class not found');
+    }
+    // Fetch the user's exercise results for the specified class
+    const userExerciseResults = await this.exerciseRepo
+      .createQueryBuilder('e')
+      .innerJoin('e.classes_exercises', 'ce', 'ce.exercise_id = e.id')
+      .innerJoin('e.user_exercise_results', 'uer', 'uer.exercise_id = e.id')
+      .where('uer.user_id = :userId', { userId })
+      .andWhere('ce.class_id = :classId', { classId: classBySlug.id })
+      .select(['uer.score'])
+      .getMany();
+    return userExerciseResults;
+    // Calculate the total score
+    // const totalScore = userExerciseResults.reduce(
+    //   (sum, result) => sum + result.uer.score,
+    //   0,
+    // );
+
+    // return totalScore;
   }
 }
