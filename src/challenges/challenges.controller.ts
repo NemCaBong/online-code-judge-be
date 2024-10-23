@@ -119,21 +119,27 @@ export class ChallengesController {
   async submitCode(
     @Param('challengeSlug') challengeSlug: string,
     @Body() submitChallengeDto: SubmitChallengeDto,
+    @CurrentUser() user: User,
   ) {
     return await this.challengesService.submitChallenge(
       challengeSlug,
       submitChallengeDto,
+      user.id,
     );
   }
 
-  @Post('poll-submit')
+  @Post('/:challengeSlug/poll-submit/:userChallengeId')
   async pollSubmitCode(
-    // @Param('challengeSlug') challengeSlug: string,
+    @Param('challengeSlug') challengeSlug: string,
+    @Param('userChallengeId', ParseIntPipe) userChallengeId: number,
     @Body() submitPollDto: SubmitPollDto,
+    @CurrentUser() user: User,
   ) {
     return await this.challengesService.pollingForSubmission(
-      // challengeSlug,
+      challengeSlug,
       submitPollDto,
+      user.id,
+      userChallengeId,
     );
   }
 

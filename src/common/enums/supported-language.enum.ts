@@ -1,13 +1,13 @@
 export enum SupportedLanguage {
-  JAVASCRIPT = 'JavaScript',
-  PYTHON = 'Python',
-  'C++' = 'C++',
-  JAVA = 'Java',
+  JAVASCRIPT = 'javascript',
+  PYTHON = 'python',
+  CPP = 'cpp',
+  JAVA = 'java',
 }
 
 export const SupportedLanguageId = {
-  63: 'JavaScript',
-  71: 'Python',
-  54: 'C++',
-  62: 'Java',
+  63: 'javascript',
+  71: 'python',
+  54: 'cpp',
+  62: 'java',
 };

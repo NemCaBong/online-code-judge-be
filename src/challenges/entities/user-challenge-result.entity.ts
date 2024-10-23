@@ -14,20 +14,11 @@ export class UserChallengeResult {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'uuid', nullable: true })
-  submission_id: string;
+  @Column({ type: 'integer', nullable: true })
+  challenge_id: number;
 
-  @ManyToOne(() => User, (user) => user.user_challenge_results, {
-    createForeignKeyConstraints: false,
-  })
-  @JoinColumn({ name: 'user_id' })
-  user: User;
-
-  @ManyToOne(() => Challenge, (challenge) => challenge.user_challenge_results, {
-    createForeignKeyConstraints: false,
-  })
-  @JoinColumn({ name: 'challenge_id' })
-  challenge: Challenge;
+  @Column({ type: 'integer', nullable: true })
+  user_id: number;
 
   @Column({ length: 30 })
   status: string;
@@ -45,14 +36,23 @@ export class UserChallengeResult {
   time: number;
 
   @Column({ type: 'integer', nullable: true })
-  memory: number;
+  status_id: number;
 
-  @Column({
-    type: 'timestamp',
-    nullable: true,
-  })
-  submitted_at: Date;
+  @Column({ nullable: true, length: 100 })
+  message: string;
 
   @Column({ type: 'integer', nullable: true })
-  status_id: number;
+  memory: number;
+
+  @ManyToOne(() => User, (user) => user.user_challenge_results, {
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: 'user_id' })
+  user: User;
+
+  @ManyToOne(() => Challenge, (challenge) => challenge.user_challenge_results, {
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: 'challenge_id' })
+  challenge: Challenge;
 }

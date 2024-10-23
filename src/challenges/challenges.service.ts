@@ -19,6 +19,8 @@ import { SubmitChallengeDto } from './dtos/submit-challenge.dto';
 import { Judge0StatusDescription } from 'src/common/constants';
 import { DifficultyEnum } from 'src/common/enums/difficulty.enum';
 import { ChallengeResultStatusEnum } from 'src/common/enums/challenge-status.enum';
+import { TodoChallenge } from './entities/todo-challenge.entity';
+import { use } from 'passport';
 
 @Injectable()
 export class ChallengesService {
@@ -29,6 +31,8 @@ export class ChallengesService {
     private readonly userChallengeResultsRepo: Repository<UserChallengeResult>,
     @InjectRepository(TestCase)
     private readonly testCaseRepo: Repository<TestCase>,
+    @InjectRepository(TodoChallenge)
+    private readonly todoChallengeRepo: Repository<TodoChallenge>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -126,25 +130,22 @@ export class ChallengesService {
   }
 
   async getTodoChallenges(userId: number) {
-    const queryBuilder = this.challengesRepo
-      .createQueryBuilder('c')
-      .innerJoinAndSelect('c.user_challenge_results', 'ucr')
+    const todos = await this.todoChallengeRepo
+      .createQueryBuilder('tc')
+      .innerJoinAndSelect('tc.challenge', 'c')
       .select([
-        'ucr.id',
+        'tc.id',
         'c.id',
         'c.name',
         'c.slug',
         'c.difficulty',
-        'ucr.created_at',
+        'tc.created_at',
+        'tc.is_done',
       ])
-      .where('ucr.user_id = :userId', { userId })
-      .andWhere('ucr.status = :status', {
-        status: ChallengeResultStatusEnum.TODO,
-      })
-      .orderBy('ucr.created_at', 'DESC');
+      .where('tc.user_id = :userId', { userId })
+      .orderBy('tc.created_at', 'DESC')
+      .getMany();
 
-    const todos = await queryBuilder.getMany();
-    console.log(todos);
     return todos;
   }
 
@@ -160,7 +161,12 @@ export class ChallengesService {
         'ucr.created_at',
       ])
       .where('ucr.user_id = :userId', { userId })
-      .andWhere('ucr.code IS NOT NULL')
+      .andWhere('ucr.status = :status', {
+        status: ChallengeResultStatusEnum.DONE,
+      })
+      .andWhere('ucr.status_id = :statusId', {
+        statusId: Judge0Status.ACCEPTED,
+      })
       .getCount();
   }
 
@@ -351,7 +357,7 @@ export class ChallengesService {
       };
     });
 
-    console.log(submissions);
+    // console.log(submissions);
 
     try {
       const response = await axios.post(
@@ -481,6 +487,7 @@ export class ChallengesService {
   async submitChallenge(
     challengeSlug: string,
     submitChallengeDto: SubmitChallengeDto,
+    userId: number,
   ) {
     const { code, languageId } = submitChallengeDto;
 
@@ -541,18 +548,53 @@ export class ChallengesService {
           testCaseId: testCase.id,
         };
       });
-      return { message: 'Success', result: res };
+      const userChallRes = this.userChallengeResultsRepo.create({
+        challenge_id: challenge.id,
+        user_id: userId,
+        status: ChallengeResultStatusEnum.PENDING,
+        code: code,
+        language_id: languageId,
+        created_at: new Date(),
+        status_id: Judge0Status.IN_QUEUE,
+      });
+
+      await this.userChallengeResultsRepo.save(userChallRes);
+
+      return {
+        message: 'Success',
+        result: res,
+        user_challenge_id: userChallRes.id,
+      };
     } catch (error) {
       throw new BadRequestException(
         `Error processing submissions: ${error.message}`,
       );
     }
   }
-
   async pollingForSubmission(
-    // challengeSlug: string,
+    challengeSlug: string,
     submitPollDto: SubmitPollDto,
+    userId: number,
+    userChallengeId: number,
   ) {
+    // check if userChallengeId is valid
+    const userChallenge = await this.userChallengeResultsRepo.findOne({
+      where: { id: userChallengeId },
+    });
+    const chall = await this.challengesRepo.findOne({
+      where: { slug: challengeSlug },
+    });
+
+    if (
+      !userChallenge ||
+      !chall ||
+      chall.id != userChallenge.challenge_id ||
+      !userId ||
+      userChallenge.user_id != userId
+    ) {
+      throw new BadRequestException('Not found the submission');
+    }
+
     // sort submitPollDto by testCaseId
     submitPollDto.submitPoll.sort((a, b) => a.testCaseId - b.testCaseId);
     const { submitPoll } = submitPollDto;
@@ -593,6 +635,16 @@ export class ChallengesService {
           (tc) => tc.id === failedTestCase?.testCaseId,
         );
         const { stdout, stderr, message, ...submissionData } = submission;
+
+        // Update userChallengeResult with the error message
+        await this.userChallengeResultsRepo.update(
+          { id: userChallenge.id },
+          {
+            status: ChallengeResultStatusEnum.FAILED,
+            status_id: submission.status.id || 4,
+            message: Judge0StatusDescription[submission.status.id || 4],
+          },
+        );
         return {
           message: 'Error',
           error: Judge0StatusDescription[id],
@@ -625,6 +677,18 @@ export class ChallengesService {
     );
     const averageTime = totalTime / submissions.length;
     const averageMemory = totalMemory / submissions.length;
+
+    // Update the userChallengeResult with successful status
+    await this.userChallengeResultsRepo.update(
+      { id: userChallengeId },
+      {
+        time: averageTime,
+        memory: Math.round(averageMemory),
+        status: ChallengeResultStatusEnum.DONE,
+        status_id: Judge0Status.ACCEPTED,
+        message: Judge0StatusDescription[Judge0Status.ACCEPTED],
+      },
+    );
 
     return {
       message: 'Success',

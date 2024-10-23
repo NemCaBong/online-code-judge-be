@@ -78,4 +78,14 @@ export class ClassController {
       class: lookingClass,
     };
   }
+
+  @Get('teachers/all')
+  async getAllClassesOfTeacher(@CurrentUser() user: User) {
+    const classes = await this.classService.getAllClassOfATeacher(user.id);
+    return {
+      message: 'Success',
+      statusCode: 200,
+      classes,
+    };
+  }
 }

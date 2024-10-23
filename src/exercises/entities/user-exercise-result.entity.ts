@@ -17,7 +17,7 @@ export class UserExerciseResult {
   @Column({ length: 30 })
   status: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'numeric', nullable: true, precision: 10, scale: 2 })
   score: number;
 
   @Column({ length: 1000, nullable: true })

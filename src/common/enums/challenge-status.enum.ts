@@ -1,5 +1,6 @@
 export enum ChallengeResultStatusEnum {
   DONE = 'done',
-  TODO = 'to-do',
+  PENDING = 'pending',
   NOT_DONE = 'not-done',
+  FAILED = 'failed',
 }

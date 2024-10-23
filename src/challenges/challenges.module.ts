@@ -10,6 +10,7 @@ import { Tag } from '../tags/entities/tag.entity';
 import { TestCase } from './entities/test-case.entity';
 import { Hint } from './entities/hint.entity';
 import { ChallengeTag } from './entities/challenge-tag.entity';
+import { TodoChallenge } from './entities/todo-challenge.entity';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { ChallengeTag } from './entities/challenge-tag.entity';
       TestCase,
       Hint,
       ChallengeTag,
+      TodoChallenge,
     ]),
   ],
   providers: [ChallengesService],

@@ -25,7 +25,7 @@ export class UserService {
 
   async getAllStudents(): Promise<User[]> {
     return await this.userRepo.find({
-      select: ['id', 'first_name', 'last_name'],
+      select: ['id', 'first_name', 'last_name', 'email'],
       where: { role: 'STUDENT' },
     });
   }

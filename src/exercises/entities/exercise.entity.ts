@@ -1,7 +1,15 @@
-import { ClassExercise } from 'src/classes/entities/class-exercise.entity';
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { UserExerciseResult } from './user-exercise-result.entity';
 import { ExerciseDetail } from './exercise-detail.entity';
+import { Class } from 'src/classes/entities/class.entity';
+import { User } from 'src/users/user.entity';
 
 @Entity('exercises')
 export class Exercise {
@@ -14,9 +22,6 @@ export class Exercise {
   @Column({ type: 'boolean', default: false })
   is_deleted: boolean;
 
-  @Column({ length: 300 })
-  slug: string;
-
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
@@ -26,8 +31,11 @@ export class Exercise {
   @Column({ length: 255 })
   name: string;
 
-  @OneToMany(() => ClassExercise, (classExercise) => classExercise.exercise)
-  classes_exercises: ClassExercise[];
+  @Column({ type: 'timestamp', nullable: true })
+  due_at: Date;
+
+  @Column({ type: 'integer' })
+  class_id: number;
 
   @OneToMany(
     () => UserExerciseResult,
@@ -44,4 +52,8 @@ export class Exercise {
     { createForeignKeyConstraints: false },
   )
   exerciseDetails: ExerciseDetail[];
+
+  @ManyToOne(() => Class, { createForeignKeyConstraints: false })
+  @JoinColumn({ name: 'class_id' })
+  class: Class;
 }

@@ -8,6 +8,8 @@ import { CreateExerciseDto } from './dtos/create-exercise.dto';
 import { ExerciseDetail } from './entities/exercise-detail.entity';
 import { LANGUAGE_MAP } from 'src/common/constants';
 import slugify from 'slugify';
+import { UserExerciseResult } from './entities/user-exercise-result.entity';
+import { UserExerciseStatus } from 'src/common/enums/user-exercise-status.enum';
 
 @Injectable()
 export class ExerciseService {
@@ -18,6 +20,8 @@ export class ExerciseService {
     private readonly exerciseRepo: Repository<Exercise>,
     @InjectRepository(ExerciseDetail)
     private readonly exerciseDetailRepo: Repository<ExerciseDetail>,
+    @InjectRepository(UserExerciseResult)
+    private readonly userExerciseResultRepo: Repository<UserExerciseResult>,
     private readonly classService: ClassService,
     private readonly dataSource: DataSource,
   ) {}
@@ -35,19 +39,18 @@ export class ExerciseService {
 
     return await this.exerciseRepo
       .createQueryBuilder('e')
-      .innerJoinAndSelect('e.classes_exercises', 'ce')
-      .innerJoinAndSelect('ce.class', 'class') // Join with the Class entity
+      .innerJoinAndSelect('e.class', 'class')
       .leftJoinAndSelect(
         'e.user_exercise_results',
         'uer',
         'uer.user_id = :userId',
         { userId },
       )
-      .where('ce.class_id IN (:...classIds)', { classIds })
-      .orderBy('ce.due_at', 'DESC')
+      .where('e.class_id IN (:...classIds)', { classIds })
+      .orderBy('e.due_at', 'DESC')
       .select([
         'uer.status',
-        'ce.due_at',
+        'e.due_at',
         'e.id',
         'e.name',
         'e.created_at',
@@ -66,7 +69,6 @@ export class ExerciseService {
     }
     return await this.exerciseRepo
       .createQueryBuilder('e')
-      .innerJoinAndSelect('e.classes_exercises', 'ce', 'ce.exercise_id = e.id')
       .leftJoinAndSelect(
         'e.user_exercise_results',
         'uer',
@@ -74,7 +76,8 @@ export class ExerciseService {
         { userId },
       )
       .where('uer.status = :status', { status: 'done' })
-      .andWhere('ce.class_id IN (:...classIds)', { classIds })
+      .orWhere('uer.status = :status', { status: 'graded' })
+      .andWhere('e.class_id IN (:...classIds)', { classIds })
       .getCount();
   }
 
@@ -86,8 +89,7 @@ export class ExerciseService {
     }
     return await this.exerciseRepo
       .createQueryBuilder('e')
-      .innerJoinAndSelect('e.classes_exercises', 'ce')
-      .where('ce.class_id IN (:...classIds)', { classIds })
+      .where('e.class_id IN (:...classIds)', { classIds })
       .getCount();
   }
 
@@ -102,7 +104,9 @@ export class ExerciseService {
       const exercise = new Exercise();
       exercise.name = createExerciseDto.name;
       exercise.description = createExerciseDto.markdownContent;
-      exercise.slug = slugify(createExerciseDto.name, { lower: true });
+      // exercise.slug = slugify(createExerciseDto.name, { lower: true });
+      exercise.due_at = createExerciseDto.due_at;
+      exercise.class_id = createExerciseDto.class_id;
 
       // Save the new exercise to the database
       const savedExercise = await queryRunner.manager.save(exercise);
@@ -153,22 +157,108 @@ export class ExerciseService {
     if (!classBySlug) {
       throw new BadRequestException('Class not found');
     }
-    // Fetch the user's exercise results for the specified class
-    const userExerciseResults = await this.exerciseRepo
-      .createQueryBuilder('e')
-      .innerJoin('e.classes_exercises', 'ce', 'ce.exercise_id = e.id')
-      .innerJoin('e.user_exercise_results', 'uer', 'uer.exercise_id = e.id')
-      .where('uer.user_id = :userId', { userId })
-      .andWhere('ce.class_id = :classId', { classId: classBySlug.id })
-      .select(['uer.score'])
-      .getMany();
-    return userExerciseResults;
-    // Calculate the total score
-    // const totalScore = userExerciseResults.reduce(
-    //   (sum, result) => sum + result.uer.score,
-    //   0,
-    // );
 
-    // return totalScore;
+    const currentDate = new Date();
+
+    const exercises = await this.exerciseRepo
+      .createQueryBuilder('e')
+      .where('e.class_id = :classId', { classId: classBySlug.id })
+      .getMany();
+
+    const userExerciseResults = await this.userExerciseResultRepo.find({
+      where: {
+        user_id: userId,
+        class_id: classBySlug.id,
+      },
+    });
+
+    let totalScore = 0;
+    let count = 0;
+    const overdueExercises = [];
+
+    for (const exercise of exercises) {
+      const userResult = userExerciseResults.find(
+        (uer) => uer.exercise_id === exercise.id,
+      );
+      // not done and overdue
+      if (!userResult && exercise.due_at < currentDate) {
+        const overdueExercise = this.userExerciseResultRepo.create({
+          user_id: userId,
+          exercise_id: exercise.id,
+          class_id: classBySlug.id,
+          status: UserExerciseStatus.OVERDUE,
+          score: 0,
+        });
+        overdueExercises.push(overdueExercise);
+        count += 1;
+      }
+
+      // done and have graded
+      if (userResult && userResult.status === UserExerciseStatus.GRADED) {
+        totalScore += parseFloat(userResult.score.toString());
+        count += 1;
+      }
+      // overdue
+      if (userResult && userResult.status === UserExerciseStatus.OVERDUE) {
+        count += 1;
+      }
+      // TH nộp muộn hơn thời gian hết hạn sẽ đc xem xét tự động tại phần nộp bài
+    }
+    await this.userExerciseResultRepo.save(overdueExercises);
+    return parseFloat((totalScore / count).toFixed(2));
+  }
+
+  async getGradedExercises(userId: number, classSlug: string) {
+    const classBySlug = await this.classService.getAClass(classSlug);
+    if (!classBySlug) {
+      throw new BadRequestException('Class not found');
+    }
+
+    const graded = await this.userExerciseResultRepo.find({
+      where: {
+        user_id: userId,
+        class_id: classBySlug.id,
+        status: UserExerciseStatus.GRADED,
+      },
+      relations: ['exercise'],
+    });
+    return graded;
+  }
+
+  async getAssignedExercises(userId: number, classSlug: string) {
+    const classBySlug = await this.classService.getAClass(classSlug);
+
+    if (!classBySlug) {
+      throw new BadRequestException('Class not found');
+    }
+
+    const assigned = await this.exerciseRepo
+      .createQueryBuilder('e')
+      .innerJoinAndSelect('e.class', 'c')
+      .leftJoinAndSelect(
+        'e.user_exercise_results',
+        'uer',
+        'uer.user_id = :userId',
+        { userId },
+      )
+      .where('c.id = :classId', {
+        classId: classBySlug.id,
+      })
+      .select([
+        'e.id',
+        'e.name',
+        'e.description',
+        'e.due_at',
+        'e.created_at',
+        'e.updated_at',
+        'e.slug',
+        'c.id',
+        'c.name',
+        'uer.status',
+        'uer.score',
+      ])
+      .getMany();
+
+    return assigned;
   }
 }

@@ -1,3 +1,4 @@
+import { TodoChallenge } from 'src/challenges/entities/todo-challenge.entity';
 import { UserChallengeResult } from 'src/challenges/entities/user-challenge-result.entity';
 import { UserClass } from 'src/classes/entities/user-class.entity';
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
@@ -35,6 +36,11 @@ export class User {
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
+
+  @OneToMany(() => TodoChallenge, (todoChallenge) => todoChallenge.user, {
+    createForeignKeyConstraints: false,
+  })
+  todos: TodoChallenge[];
 
   toJSON() {
     const { password, ...userWithoutPassword } = this;

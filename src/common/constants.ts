@@ -4,7 +4,7 @@ export const DEFAULT_PAGINATION_LIMIT = 10;
 export const LANGUAGE_MAP = {
   javascript: 63,
   python: 71,
-  'c++': 54,
+  cpp: 54,
   java: 62,
 };
 

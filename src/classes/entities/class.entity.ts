@@ -7,9 +7,9 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from '../../users/user.entity';
-import { ClassExercise } from './class-exercise.entity';
 import { UserClass } from './user-class.entity';
 import { PostEntity } from './post.entity';
+import { Exercise } from 'src/exercises/entities/exercise.entity';
 
 @Entity('classes')
 export class Class {
@@ -38,9 +38,6 @@ export class Class {
   @JoinColumn({ name: 'teacher_id' })
   teacher: User;
 
-  @OneToMany(() => ClassExercise, (classExercise) => classExercise.class)
-  classes_exercises: ClassExercise[];
-
   @OneToMany(() => UserClass, (userClass) => userClass.class, {
     createForeignKeyConstraints: false,
   })
@@ -58,4 +55,9 @@ export class Class {
     createForeignKeyConstraints: false,
   })
   posts: PostEntity[];
+
+  @OneToMany(() => Exercise, (exercise) => exercise.class, {
+    createForeignKeyConstraints: false,
+  })
+  exercises: Exercise[];
 }

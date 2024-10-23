@@ -4,6 +4,8 @@ import {
   ValidateNested,
   IsNotEmpty,
   IsEnum,
+  IsNumber,
+  IsDate,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -35,4 +37,12 @@ export class CreateExerciseDto {
   @ValidateNested({ each: true })
   @Type(() => BoilerplateCodeDto)
   boilerplate_codes: BoilerplateCodeDto[];
+
+  @IsNumber()
+  @Type(() => Number)
+  class_id: number;
+
+  @IsDate()
+  @Type(() => Date)
+  due_at: Date;
 }

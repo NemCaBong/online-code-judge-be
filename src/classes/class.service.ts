@@ -164,4 +164,13 @@ export class ClassService {
       ])
       .getOne();
   }
+
+  async getAllClassOfATeacher(teacherId: number): Promise<Class[]> {
+    return await this.classRepo
+      .createQueryBuilder('c')
+      .where('c.teacher_id = :teacherId', { teacherId })
+      .andWhere('c.is_done = :isDone', { isDone: false })
+      .select(['c.id', 'c.name', 'c.created_at', 'c.slug', 'c.is_done'])
+      .getMany();
+  }
 }

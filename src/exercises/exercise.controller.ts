@@ -1,8 +1,16 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+} from '@nestjs/common';
 import { ExerciseService } from './exercise.service';
 import { CreateExerciseDto } from './dtos/create-exercise.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { User } from 'src/users/user.entity';
+import { UserRole } from 'src/common/enums/user-role.enum';
 
 @Controller('exercises')
 export class ExerciseController {
@@ -23,7 +31,14 @@ export class ExerciseController {
   }
 
   @Post('create')
-  async createExercise(@Body() createExerciseDto: CreateExerciseDto) {
+  async createExercise(
+    @Body() createExerciseDto: CreateExerciseDto,
+    @CurrentUser() user: User,
+  ) {
+    if (user.role !== UserRole.TEACHER) {
+      throw new BadRequestException('Only teacher can create exercise');
+    }
+
     await this.exerciseService.createExercise(createExerciseDto);
     return {
       message: 'Success',
@@ -56,14 +71,51 @@ export class ExerciseController {
     };
   }
 
-  @Get('users/classes/:classSlug/score')
+  @Get('users/classes/:classSlug/avg-score')
   async getUserClassScores(
     @CurrentUser() user: User,
     @Param('classSlug') classSlug: string,
   ) {
-    return await this.exerciseService.getScoreOfUserInAClass(
+    return {
+      message: 'Success',
+      statusCode: 200,
+      avg_score: await this.exerciseService.getScoreOfUserInAClass(
+        user.id,
+        classSlug,
+      ),
+    };
+  }
+
+  @Get('users/classes/:classSlug/graded')
+  async getGradedExercises(
+    @CurrentUser() user: User,
+    @Param('classSlug') classSlug: string,
+  ) {
+    const graded_exercises = await this.exerciseService.getGradedExercises(
       user.id,
       classSlug,
     );
+    return {
+      message: 'Success',
+      statusCode: 200,
+      graded_exercises,
+    };
+  }
+
+  @Get('users/classes/:classSlug/assigned')
+  async getAssignedExercises(
+    @CurrentUser() user: User,
+    @Param('classSlug') classSlug: string,
+  ) {
+    const assigned_exercises = await this.exerciseService.getAssignedExercises(
+      user.id,
+      classSlug,
+    );
+
+    return {
+      message: 'Success',
+      statusCode: 200,
+      assigned_exercises,
+    };
   }
 }
