@@ -1,12 +1,24 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ClassService } from './class.service';
 import { CreateClassDto } from './dtos/create-class.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { User } from 'src/users/user.entity';
+import { ExerciseService } from 'src/exercises/exercise.service';
 
 @Controller('classes')
 export class ClassController {
-  constructor(private readonly classService: ClassService) {}
+  constructor(
+    private readonly classService: ClassService,
+    private readonly exerciseService: ExerciseService,
+  ) {}
 
   @Get()
   async getAllClassesOfUser(@CurrentUser() user: User) {
@@ -86,6 +98,25 @@ export class ClassController {
       message: 'Success',
       statusCode: 200,
       classes,
+    };
+  }
+
+  @Get(':classSlug/exercises/:exerciseId')
+  async getExerciseOfAClass(
+    @Param('classSlug') classSlug: string,
+    @Param('exerciseId', ParseIntPipe) exerciseId: number,
+    @CurrentUser() user: User,
+  ) {
+    const exercise = await this.exerciseService.getAnExercise(
+      classSlug,
+      exerciseId,
+      user.id,
+    );
+
+    return {
+      message: 'Success',
+      statusCode: 200,
+      exercise,
     };
   }
 }

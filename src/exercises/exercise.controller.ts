@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseIntPipe,
   Post,
 } from '@nestjs/common';
 import { ExerciseService } from './exercise.service';
@@ -11,6 +12,7 @@ import { CreateExerciseDto } from './dtos/create-exercise.dto';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { User } from 'src/users/user.entity';
 import { UserRole } from 'src/common/enums/user-role.enum';
+import { RunExerciseDto } from './dtos/run-exercise.dto';
 
 @Controller('exercises')
 export class ExerciseController {
@@ -116,6 +118,43 @@ export class ExerciseController {
       message: 'Success',
       statusCode: 200,
       assigned_exercises,
+    };
+  }
+
+  @Post(':exerciseId/run')
+  async runCode(
+    @Param('exerciseId', ParseIntPipe) exerciseId: number,
+    @Body() runCodeDto: RunExerciseDto,
+    @CurrentUser() user: User,
+  ) {
+    const result = await this.exerciseService.runExercise(
+      exerciseId,
+      runCodeDto,
+      user.id,
+    );
+    return {
+      message: 'Success',
+      statusCode: 200,
+      result,
+    };
+  }
+
+  @Post(':exerciseId/classes/:classSlug/submit')
+  async submitExcersise(
+    @Param('exerciseId', ParseIntPipe) exerciseId: number,
+    @Param('classSlug') classSlug: string,
+    @Body() submitExerciseDto: RunExerciseDto,
+    @CurrentUser() user: User,
+  ) {
+    await this.exerciseService.submitExercise(
+      exerciseId,
+      submitExerciseDto,
+      user.id,
+      classSlug,
+    );
+    return {
+      message: 'Success',
+      statusCode: 201,
     };
   }
 }

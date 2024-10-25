@@ -10,6 +10,16 @@ import { LANGUAGE_MAP } from 'src/common/constants';
 import slugify from 'slugify';
 import { UserExerciseResult } from './entities/user-exercise-result.entity';
 import { UserExerciseStatus } from 'src/common/enums/user-exercise-status.enum';
+import { RunExerciseDto } from './dtos/run-exercise.dto';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as os from 'os';
+import axios from 'axios';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { UserExerciseDetail } from './entities/user-exercise-detail';
+
+const execPromise = promisify(exec);
 
 @Injectable()
 export class ExerciseService {
@@ -22,6 +32,8 @@ export class ExerciseService {
     private readonly exerciseDetailRepo: Repository<ExerciseDetail>,
     @InjectRepository(UserExerciseResult)
     private readonly userExerciseResultRepo: Repository<UserExerciseResult>,
+    @InjectRepository(UserExerciseDetail)
+    private readonly userExerciseDetailRepo: Repository<UserExerciseDetail>,
     private readonly classService: ClassService,
     private readonly dataSource: DataSource,
   ) {}
@@ -260,5 +272,184 @@ export class ExerciseService {
       .getMany();
 
     return assigned;
+  }
+
+  async getAnExercise(classSlug: string, exerciseId: number, userId: number) {
+    const thatClass = await this.classService.getAClass(classSlug);
+    if (!thatClass) {
+      throw new BadRequestException('Class not found');
+    }
+    const exercise = await this.exerciseRepo
+      .createQueryBuilder('e')
+      .leftJoinAndSelect('e.class', 'c')
+      .leftJoinAndSelect('e.exercise_details', 'ed')
+      .leftJoinAndSelect(
+        'e.user_exercise_results',
+        'uer',
+        'uer.user_id = :userId',
+        { userId },
+      )
+      .leftJoinAndSelect(
+        'uer.user_exercise_details',
+        'ued',
+        'ued.user_exercise_id = uer.id',
+      )
+      .where('e.id = :exerciseId', { exerciseId })
+      .getOne();
+    if (!exercise || exercise.class.id !== thatClass.id) {
+      throw new BadRequestException('Exercise not found');
+    }
+
+    return exercise;
+  }
+
+  async runExercise(
+    exerciseId: number,
+    runExerciseDto: RunExerciseDto,
+    userId: number,
+  ) {
+    const exercise = await this.exerciseRepo.findOne({
+      where: { id: exerciseId },
+    });
+    if (!exercise) {
+      throw new BadRequestException('Exercise not found');
+    }
+
+    const projectRoot = process.cwd();
+    const tempBaseDir = path.join(projectRoot, 'temp');
+    const tmpDir = path.join(
+      tempBaseDir,
+      `exercise-${exerciseId}-${Date.now()}`,
+    );
+    const additionalFilesDir = path.join(tmpDir, 'additional_files');
+
+    // Create temp directories if they don't exist
+    await fs.mkdir(tempBaseDir, { recursive: true });
+    await fs.mkdir(tmpDir, { recursive: true });
+    await fs.mkdir(additionalFilesDir);
+
+    try {
+      const javaFiles = runExerciseDto.codes
+        .filter((code) => code.file_name.endsWith('.java'))
+        .map((code) => code.file_name);
+
+      // Create compile script with Main.java and all supporting files
+      await fs.writeFile(
+        path.join(additionalFilesDir, 'compile'),
+        `#!/bin/bash\n/usr/local/openjdk13/bin/javac ${javaFiles.join(' ')}`,
+        { mode: 0o755 },
+      );
+
+      // Run script will always execute Main class
+      await fs.writeFile(
+        path.join(additionalFilesDir, 'run'),
+        '#!/bin/bash\n/usr/local/openjdk13/bin/java Main',
+        { mode: 0o755 },
+      );
+
+      for (const code of runExerciseDto.codes) {
+        await fs.writeFile(
+          path.join(additionalFilesDir, code.file_name),
+          code.boilerplate_code,
+        );
+      }
+
+      const { stdout: zippedBase64 } = await execPromise(
+        `cd "${additionalFilesDir}" && zip -r - . | base64 -w0`,
+      );
+
+      const response = await axios.post(
+        'http://localhost:2358/submissions?base64_encoded=true&wait=true',
+        {
+          source_code: '',
+          language_id: 89,
+          additional_files: zippedBase64,
+        },
+        {
+          headers: {
+            'X-Auth-Token': 't2UFBewPFQcqnMwPaPmmBChpy7P9T6tT',
+          },
+        },
+      );
+      const { stdout, stderr, compile_output, ...rest } = response.data;
+      const result = {
+        stderr: stderr ? Buffer.from(stderr, 'base64').toString('utf-8') : null,
+        stdout: stdout ? Buffer.from(stdout, 'base64').toString('utf-8') : null,
+        compile_output: compile_output
+          ? Buffer.from(compile_output, 'base64').toString('utf-8')
+          : null,
+        ...rest,
+      };
+
+      return result;
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  }
+
+  async submitExercise(
+    exerciseId: number,
+    submitExerciseDto: RunExerciseDto,
+    userId: number,
+    classSlug: string,
+  ) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Find the class
+      const thatClass = await this.classService.getAClass(classSlug);
+      if (!thatClass) {
+        throw new BadRequestException('Class not found');
+      }
+
+      // Check if user has already submitted
+      const existingResult = await this.userExerciseResultRepo.findOne({
+        where: {
+          exercise: { id: exerciseId },
+          user: { id: userId },
+          class: { id: thatClass.id },
+        },
+      });
+
+      if (existingResult) {
+        throw new BadRequestException(
+          'You have already submitted this exercise',
+        );
+      }
+
+      // Create and save the UserExerciseResult
+      const newlyUserExerciseResult = this.userExerciseResultRepo.create({
+        user_id: userId,
+        exercise_id: exerciseId,
+        class_id: thatClass.id,
+        status: 'submitted',
+        submitted_at: new Date(),
+      });
+
+      const savedUserExerciseResult = await queryRunner.manager.save(
+        newlyUserExerciseResult,
+      );
+
+      // Create UserExerciseDetail entries
+      const userExerciseDetails = submitExerciseDto.codes.map((item) => {
+        return this.userExerciseDetailRepo.create({
+          file_name: item.file_name,
+          code: item.boilerplate_code,
+          language_id: item.language_id,
+          user_exercise_id: savedUserExerciseResult.id,
+        });
+      });
+
+      // Save UserExerciseDetail entries
+      await queryRunner.manager.save(UserExerciseDetail, userExerciseDetails);
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

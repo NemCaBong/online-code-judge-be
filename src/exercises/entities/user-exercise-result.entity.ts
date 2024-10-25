@@ -3,11 +3,13 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from '../../users/user.entity';
 import { Exercise } from './exercise.entity';
 import { Class } from '../../classes/entities/class.entity';
+import { UserExerciseDetail } from './user-exercise-detail';
 
 @Entity('user_exercise_results')
 export class UserExerciseResult {
@@ -43,6 +45,13 @@ export class UserExerciseResult {
   @ManyToOne(() => Class, { createForeignKeyConstraints: false })
   @JoinColumn({ name: 'class_id' })
   class: Class;
+
+  @OneToMany(
+    () => UserExerciseDetail,
+    (UserExerciseDetail) => UserExerciseDetail.user_exercise_result,
+    { createForeignKeyConstraints: false },
+  )
+  user_exercise_details: UserExerciseDetail[];
 
   @Column({
     type: 'timestamp',

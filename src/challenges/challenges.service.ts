@@ -430,7 +430,8 @@ export class ChallengesService {
         )?.testCaseId;
         const testCase = testCases.find((tc) => tc.id === testCaseId);
         if (statusId >= 5 && statusId <= 14) {
-          const { stdout, stderr, ...submissionData } = submission;
+          const { stdout, stderr, compile_output, ...submissionData } =
+            submission;
 
           return {
             message: 'Error',
@@ -443,6 +444,9 @@ export class ChallengesService {
               stdout: stdout
                 ? Buffer.from(stdout, 'base64').toString('utf-8')
                 : null,
+              compile_output: compile_output
+                ? Buffer.from(compile_output, 'base64').toString('utf-8')
+                : null,
               ...submissionData,
             },
             errorTestCase: testCase,
@@ -451,13 +455,17 @@ export class ChallengesService {
       }
       // Process the results
       const results = submissions.map((submission) => {
-        const { stdout, stderr, ...submissionData } = submission;
+        const { stdout, stderr, compile_output, ...submissionData } =
+          submission;
         return {
           stderr: stderr
             ? Buffer.from(stderr, 'base64').toString('utf-8')
             : null,
           stdout: stdout
             ? Buffer.from(stdout, 'base64').toString('utf-8')
+            : null,
+          compile_output: compile_output
+            ? Buffer.from(compile_output, 'base64').toString('utf-8')
             : null,
           ...submissionData,
         };
@@ -571,6 +579,7 @@ export class ChallengesService {
       );
     }
   }
+
   async pollingForSubmission(
     challengeSlug: string,
     submitPollDto: SubmitPollDto,
@@ -634,7 +643,8 @@ export class ChallengesService {
         const testCase = testCases.find(
           (tc) => tc.id === failedTestCase?.testCaseId,
         );
-        const { stdout, stderr, message, ...submissionData } = submission;
+        const { stdout, stderr, compile_output, message, ...submissionData } =
+          submission;
 
         // Update userChallengeResult with the error message
         await this.userChallengeResultsRepo.update(
@@ -655,6 +665,9 @@ export class ChallengesService {
               : null,
             stderr: stderr
               ? Buffer.from(stderr, 'base64').toString('utf-8')
+              : null,
+            compile_output: compile_output
+              ? Buffer.from(compile_output, 'base64').toString('utf-8')
               : null,
             message: message
               ? Buffer.from(message, 'base64').toString('utf-8')

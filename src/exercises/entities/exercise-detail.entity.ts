@@ -25,7 +25,7 @@ export class ExerciseDetail {
   @Column({ type: 'integer' })
   exercise_id: number;
 
-  @ManyToOne(() => Exercise, (exercise) => exercise.exerciseDetails, {
+  @ManyToOne(() => Exercise, (exercise) => exercise.exercise_details, {
     createForeignKeyConstraints: false,
   })
   @JoinColumn({ name: 'exercise_id' })

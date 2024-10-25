@@ -51,7 +51,7 @@ export class Exercise {
     (exerciseDetail) => exerciseDetail.exercise,
     { createForeignKeyConstraints: false },
   )
-  exerciseDetails: ExerciseDetail[];
+  exercise_details: ExerciseDetail[];
 
   @ManyToOne(() => Class, { createForeignKeyConstraints: false })
   @JoinColumn({ name: 'class_id' })
