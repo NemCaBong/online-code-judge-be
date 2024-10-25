@@ -18,6 +18,9 @@ import axios from 'axios';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { UserExerciseDetail } from './entities/user-exercise-detail';
+import { User } from 'src/users/user.entity';
+import { Class } from 'src/classes/entities/class.entity';
+import { EvaluateExerciseDto } from './dtos/evaluate-exercise.dto';
 
 const execPromise = promisify(exec);
 
@@ -398,52 +401,70 @@ export class ExerciseService {
     await queryRunner.startTransaction();
 
     try {
-      // Find the class
       const thatClass = await this.classService.getAClass(classSlug);
       if (!thatClass) {
         throw new BadRequestException('Class not found');
       }
 
-      // Check if user has already submitted
+      // Check existing result
       const existingResult = await this.userExerciseResultRepo.findOne({
         where: {
           exercise: { id: exerciseId },
           user: { id: userId },
           class: { id: thatClass.id },
         },
+        relations: ['user_exercise_details'],
       });
 
-      if (existingResult) {
+      if (existingResult && existingResult.status !== 'not-done') {
         throw new BadRequestException(
           'You have already submitted this exercise',
         );
       }
 
-      // Create and save the UserExerciseResult
-      const newlyUserExerciseResult = this.userExerciseResultRepo.create({
-        user_id: userId,
-        exercise_id: exerciseId,
-        class_id: thatClass.id,
-        status: 'submitted',
-        submitted_at: new Date(),
-      });
+      if (existingResult && existingResult.status === 'not-done') {
+        // Update existing record
+        existingResult.status = 'submitted';
+        existingResult.submitted_at = new Date();
+        const savedResult = await queryRunner.manager.save(existingResult);
 
-      const savedUserExerciseResult = await queryRunner.manager.save(
-        newlyUserExerciseResult,
-      );
-
-      // Create UserExerciseDetail entries
-      const userExerciseDetails = submitExerciseDto.codes.map((item) => {
-        return this.userExerciseDetailRepo.create({
-          file_name: item.file_name,
-          code: item.boilerplate_code,
-          language_id: item.language_id,
-          user_exercise_id: savedUserExerciseResult.id,
+        // Update existing exercise details
+        for (const item of submitExerciseDto.codes) {
+          const existingDetail = existingResult.user_exercise_details.find(
+            (detail) => detail.file_name === item.file_name,
+          );
+          if (existingDetail) {
+            existingDetail.code = item.boilerplate_code;
+            existingDetail.language_id = item.language_id;
+            await queryRunner.manager.save(UserExerciseDetail, existingDetail);
+          }
+        }
+      } else {
+        // Create new records
+        const newlyUserExerciseResult = this.userExerciseResultRepo.create({
+          user_id: userId,
+          exercise_id: exerciseId,
+          class_id: thatClass.id,
+          status: 'submitted',
+          submitted_at: new Date(),
         });
-      });
 
-      // Save UserExerciseDetail entries
-      await queryRunner.manager.save(UserExerciseDetail, userExerciseDetails);
+        const savedUserExerciseResult = await queryRunner.manager.save(
+          newlyUserExerciseResult,
+        );
+
+        const userExerciseDetails = submitExerciseDto.codes.map((item) => {
+          return this.userExerciseDetailRepo.create({
+            file_name: item.file_name,
+            code: item.boilerplate_code,
+            language_id: item.language_id,
+            user_exercise_id: savedUserExerciseResult.id,
+          });
+        });
+
+        await queryRunner.manager.save(UserExerciseDetail, userExerciseDetails);
+      }
+
       await queryRunner.commitTransaction();
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -451,5 +472,153 @@ export class ExerciseService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  async getAllExercisesOfAClass(classSlug: string) {
+    const thatClass = await this.classService.getAClass(classSlug);
+    if (!thatClass) {
+      throw new BadRequestException('Class not found');
+    }
+    return await this.exerciseRepo.find({
+      where: { class: { id: thatClass.id } },
+    });
+  }
+
+  async getAllUserExerciseResOfAExerciseAndClass(
+    exerciseId: number,
+    classSlug: string,
+  ) {
+    const [thatClass, exercise] = await Promise.all([
+      this.classService.getAClass(classSlug),
+      this.exerciseRepo.findOne({ where: { id: exerciseId } }),
+    ]);
+
+    const userClasses = await this.userClassRepository
+      .createQueryBuilder('uc')
+      .leftJoinAndSelect('uc.user', 'user')
+      .leftJoinAndSelect(
+        'user.user_exercise_results',
+        'uer',
+        'uer.exercise_id = :exerciseId AND uer.class_id = :classId',
+        { exerciseId, classId: thatClass.id },
+      )
+      .leftJoinAndSelect('uer.user_exercise_details', 'ued')
+      .where('uc.class_id = :classId', { classId: thatClass.id })
+      .getMany();
+
+    const exerciseDetails = await this.exerciseDetailRepo.find({
+      where: { exercise_id: exerciseId },
+    });
+
+    const results = [];
+    const currentDate = new Date();
+
+    for (const userClass of userClasses) {
+      const userId = userClass.user.id;
+      let userExerciseResult = userClass.user.user_exercise_results[0];
+
+      // Always create userExerciseResult if it doesn't exist
+      if (!userExerciseResult) {
+        const status = exercise.due_at < currentDate ? 'not-done' : 'overdue';
+        if (status === 'not-done') {
+          userExerciseResult = await this.userExerciseResultRepo.save({
+            user_id: userId,
+            exercise_id: exerciseId,
+            class_id: thatClass.id,
+            status: status,
+            submitted_at: null,
+          });
+        } else {
+          userExerciseResult = await this.userExerciseResultRepo.save({
+            user_id: userId,
+            exercise_id: exerciseId,
+            class_id: thatClass.id,
+            status: status,
+            submitted_at: null,
+            score: 0,
+          });
+        }
+
+        // Always create corresponding userExerciseDetails
+        const userExerciseDetails = await this.userExerciseDetailRepo.save(
+          exerciseDetails.map((detail) => ({
+            file_name: detail.file_name,
+            code: '',
+            language_id: detail.language_id,
+            user_exercise_id: userExerciseResult.id,
+          })),
+        );
+
+        userExerciseResult.user_exercise_details = userExerciseDetails;
+      }
+      const user = new User();
+      user.id = userClass.user.id;
+      user.first_name = userClass.user.first_name;
+      user.last_name = userClass.user.last_name;
+      user.email = userClass.user.email;
+      user.role = userClass.user.role;
+      user.created_at = userClass.user.created_at;
+
+      userExerciseResult = {
+        ...userExerciseResult,
+        user,
+      };
+      results.push(userExerciseResult);
+    }
+    const aClass = new Class();
+    aClass.id = thatClass.id;
+    aClass.name = thatClass.name;
+    aClass.slug = thatClass.slug;
+    aClass.created_at = thatClass.created_at;
+    return { user_exercise_results: results, aClass };
+  }
+
+  async evaluateExercise({
+    exerciseId,
+    classSlug,
+    evaluateExerciseDto,
+    userId,
+    userExerciseResultId,
+  }: {
+    exerciseId: number;
+    classSlug: string;
+    evaluateExerciseDto: EvaluateExerciseDto;
+    userId: number;
+    userExerciseResultId: number;
+  }) {
+    const [thatClass, exercise] = await Promise.all([
+      this.classService.getAClass(classSlug),
+      this.exerciseRepo.findOne({ where: { id: exerciseId } }),
+    ]);
+
+    if (!thatClass || !exercise) {
+      throw new BadRequestException('Class or exercise not found');
+    }
+
+    // Check if the user is the teacher of the class
+    if (userId !== thatClass.teacher.id) {
+      throw new BadRequestException(
+        'Only the teacher of this class can evaluate exercises',
+      );
+    }
+
+    // Update the exercise result
+    const userExerciseResult = await this.userExerciseResultRepo.findOne({
+      where: { id: userExerciseResultId },
+    });
+
+    if (!userExerciseResult) {
+      throw new BadRequestException('Exercise result not found');
+    }
+
+    // Update evaluation and score
+    userExerciseResult.evaluation = evaluateExerciseDto.evaluation;
+    userExerciseResult.score = parseFloat(
+      parseFloat(evaluateExerciseDto.score).toFixed(2),
+    );
+    userExerciseResult.status = UserExerciseStatus.GRADED;
+
+    // Save the updated result
+    return await this.userExerciseResultRepo.save(userExerciseResult);
   }
 }

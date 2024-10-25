@@ -1,6 +1,7 @@
 import { TodoChallenge } from 'src/challenges/entities/todo-challenge.entity';
 import { UserChallengeResult } from 'src/challenges/entities/user-challenge-result.entity';
 import { UserClass } from 'src/classes/entities/user-class.entity';
+import { UserExerciseResult } from 'src/exercises/entities/user-exercise-result.entity';
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('users')
@@ -41,6 +42,15 @@ export class User {
     createForeignKeyConstraints: false,
   })
   todos: TodoChallenge[];
+
+  @OneToMany(
+    () => UserExerciseResult,
+    (userExerciseResult) => userExerciseResult.user,
+    {
+      createForeignKeyConstraints: false,
+    },
+  )
+  user_exercise_results: UserExerciseResult[];
 
   toJSON() {
     const { password, ...userWithoutPassword } = this;

@@ -13,6 +13,7 @@ import { CurrentUser } from 'src/decorators/current-user.decorator';
 import { User } from 'src/users/user.entity';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { RunExerciseDto } from './dtos/run-exercise.dto';
+import { EvaluateExerciseDto } from './dtos/evaluate-exercise.dto';
 
 @Controller('exercises')
 export class ExerciseController {
@@ -155,6 +156,65 @@ export class ExerciseController {
     return {
       message: 'Success',
       statusCode: 201,
+    };
+  }
+
+  @Get('classes/:classSlug/get-all')
+  async getAllExercisesInClass(
+    @Param('classSlug') classSlug: string,
+    @CurrentUser() user: User,
+  ) {
+    const exercises =
+      await this.exerciseService.getAllExercisesOfAClass(classSlug);
+
+    return {
+      message: 'Success',
+      statusCode: 200,
+      exercises,
+    };
+  }
+
+  @Get(':exerciseId/classes/:classSlug/user-exercise-results')
+  async getUserExerciseResult(
+    @Param('exerciseId', ParseIntPipe) exerciseId: number,
+    @Param('classSlug') classSlug: string,
+  ) {
+    const { user_exercise_results, aClass } =
+      await this.exerciseService.getAllUserExerciseResOfAExerciseAndClass(
+        exerciseId,
+        classSlug,
+      );
+
+    return {
+      message: 'Success',
+      statusCode: 200,
+      user_exercise_results,
+      class: aClass,
+    };
+  }
+
+  @Post(
+    ':exerciseId/classes/:classSlug/user-exercise-results/:userExerciseResultId/evaluate',
+  )
+  async evaluateExercise(
+    @Param('exerciseId', ParseIntPipe) exerciseId: number,
+    @Param('classSlug') classSlug: string,
+    @Body() evaluateExerciseDto: EvaluateExerciseDto,
+    @CurrentUser() user: User,
+    @Param('userExerciseResultId', ParseIntPipe) userExerciseResultId: number,
+  ) {
+    const exercise = await this.exerciseService.evaluateExercise({
+      exerciseId,
+      classSlug,
+      evaluateExerciseDto,
+      userId: user.id,
+      userExerciseResultId,
+    });
+
+    return {
+      message: 'Success',
+      statusCode: 200,
+      exercise,
     };
   }
 }

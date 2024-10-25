@@ -34,7 +34,9 @@ export class UserExerciseResult {
   @Column()
   class_id: number;
 
-  @ManyToOne(() => User, { createForeignKeyConstraints: false })
+  @ManyToOne(() => User, (user) => user.user_exercise_results, {
+    createForeignKeyConstraints: false,
+  })
   @JoinColumn({ name: 'user_id' })
   user: User;
 
