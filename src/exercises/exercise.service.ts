@@ -399,11 +399,19 @@ export class ExerciseService {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-
+    const currDate = new Date();
     try {
-      const thatClass = await this.classService.getAClass(classSlug);
+      const [thatClass, exercise] = await Promise.all([
+        this.classService.getAClass(classSlug),
+        this.exerciseRepo.findOne({ where: { id: exerciseId } }),
+      ]);
+
       if (!thatClass) {
         throw new BadRequestException('Class not found');
+      }
+
+      if (!exercise) {
+        throw new BadRequestException('Exercise not found');
       }
 
       // Check existing result
@@ -421,24 +429,17 @@ export class ExerciseService {
           'You have already submitted this exercise',
         );
       }
-
+      let res: UserExerciseResult;
       if (existingResult && existingResult.status === 'not-done') {
         // Update existing record
-        existingResult.status = 'submitted';
-        existingResult.submitted_at = new Date();
-        const savedResult = await queryRunner.manager.save(existingResult);
-
-        // Update existing exercise details
-        for (const item of submitExerciseDto.codes) {
-          const existingDetail = existingResult.user_exercise_details.find(
-            (detail) => detail.file_name === item.file_name,
-          );
-          if (existingDetail) {
-            existingDetail.code = item.boilerplate_code;
-            existingDetail.language_id = item.language_id;
-            await queryRunner.manager.save(UserExerciseDetail, existingDetail);
-          }
+        if (exercise.due_at < currDate) {
+          existingResult.status = 'overdue';
+          existingResult.score = 0;
+        } else {
+          existingResult.status = 'submitted';
         }
+        existingResult.submitted_at = currDate;
+        res = await queryRunner.manager.save(existingResult);
       } else {
         // Create new records
         const newlyUserExerciseResult = this.userExerciseResultRepo.create({
@@ -449,21 +450,19 @@ export class ExerciseService {
           submitted_at: new Date(),
         });
 
-        const savedUserExerciseResult = await queryRunner.manager.save(
-          newlyUserExerciseResult,
-        );
-
-        const userExerciseDetails = submitExerciseDto.codes.map((item) => {
-          return this.userExerciseDetailRepo.create({
-            file_name: item.file_name,
-            code: item.boilerplate_code,
-            language_id: item.language_id,
-            user_exercise_id: savedUserExerciseResult.id,
-          });
-        });
-
-        await queryRunner.manager.save(UserExerciseDetail, userExerciseDetails);
+        res = await queryRunner.manager.save(newlyUserExerciseResult);
       }
+
+      // always create new userExerciseDetails when submitting
+      const userExerciseDetails = submitExerciseDto.codes.map((item) => {
+        return this.userExerciseDetailRepo.create({
+          file_name: item.file_name,
+          code: item.boilerplate_code,
+          language_id: item.language_id,
+          user_exercise_id: res.id,
+        });
+      });
+      await queryRunner.manager.save(UserExerciseDetail, userExerciseDetails);
 
       await queryRunner.commitTransaction();
     } catch (error) {
