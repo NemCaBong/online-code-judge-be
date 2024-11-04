@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Challenge } from './entities/challenge.entity';
 import { DataSource, In, LessThanOrEqual, Repository } from 'typeorm';
@@ -19,8 +23,8 @@ import { SubmitChallengeDto } from './dtos/submit-challenge.dto';
 import { Judge0StatusDescription } from 'src/common/constants';
 import { DifficultyEnum } from 'src/common/enums/difficulty.enum';
 import { ChallengeResultStatusEnum } from 'src/common/enums/challenge-status.enum';
-import { TodoChallenge } from './entities/todo-challenge.entity';
-import { use } from 'passport';
+import { TodoChallenge } from 'src/todo-challenge/entities/todo-challenge.entity';
+import { TodoChallengeService } from 'src/todo-challenge/todo-challenge.service';
 
 @Injectable()
 export class ChallengesService {
@@ -34,6 +38,7 @@ export class ChallengesService {
     @InjectRepository(TodoChallenge)
     private readonly todoChallengeRepo: Repository<TodoChallenge>,
     private readonly dataSource: DataSource,
+    private readonly todoChallengeService: TodoChallengeService,
   ) {}
 
   async getAllChallenges(page: number = 1, limit: number = 10) {
@@ -150,24 +155,17 @@ export class ChallengesService {
   }
 
   async getDoneChallenges(userId: number): Promise<number> {
-    return await this.userChallengeResultsRepo
+    const totalChallenges = await this.userChallengeResultsRepo
       .createQueryBuilder('ucr')
-      .innerJoinAndSelect('ucr.challenge', 'c')
-      .select([
-        'ucr.id',
-        'c.id as challenge_id',
-        'c.name',
-        'c.slug',
-        'ucr.created_at',
-      ])
+      .innerJoin('ucr.challenge', 'challenge')
       .where('ucr.user_id = :userId', { userId })
       .andWhere('ucr.status = :status', {
         status: ChallengeResultStatusEnum.DONE,
       })
-      .andWhere('ucr.status_id = :statusId', {
-        statusId: Judge0Status.ACCEPTED,
-      })
-      .getCount();
+      .select('COUNT(DISTINCT ucr.challenge_id)', 'total')
+      .getRawOne();
+
+    return parseInt(totalChallenges.total, 10);
   }
 
   async getTotalChallenges(): Promise<number> {
@@ -643,36 +641,65 @@ export class ChallengesService {
         const testCase = testCases.find(
           (tc) => tc.id === failedTestCase?.testCaseId,
         );
-        const { stdout, stderr, compile_output, message, ...submissionData } =
-          submission;
+        const {
+          stdout,
+          stderr,
+          compile_output,
+          message,
+          time,
+          memory,
+          ...submissionData
+        } = submission;
+        const decodedStdout = stdout
+          ? Buffer.from(stdout, 'base64').toString()
+          : null;
+        const decodedStderr = stderr
+          ? Buffer.from(stderr, 'base64').toString()
+          : null;
+        const decodedCompileOutput = compile_output
+          ? Buffer.from(compile_output, 'base64').toString()
+          : null;
 
         // Update userChallengeResult with the error message
-        await this.userChallengeResultsRepo.update(
-          { id: userChallenge.id },
-          {
-            status: ChallengeResultStatusEnum.FAILED,
-            status_id: submission.status.id || 4,
-            message: Judge0StatusDescription[submission.status.id || 4],
-          },
-        );
+        // and increase total_attempts
+        await Promise.all([
+          this.challengesRepo
+            .createQueryBuilder()
+            .update(Challenge)
+            .where({
+              id: chall.id,
+            })
+            .set({ total_attempts: () => 'total_attempts + 1' })
+            .execute(),
+          this.userChallengeResultsRepo.update(
+            { id: userChallenge.id },
+            {
+              status: ChallengeResultStatusEnum.FAILED,
+              status_id: submission.status.id || 4,
+              message: Judge0StatusDescription[submission.status.id || 4],
+              stderr: decodedStderr,
+              stdout: decodedStdout,
+              compile_output: decodedCompileOutput,
+              testcase_id: testCase.id,
+              time,
+              memory,
+            },
+          ),
+        ]);
         return {
           message: 'Error',
           error: Judge0StatusDescription[id],
           statusCode: 400,
           submission: {
-            stdout: stdout
-              ? Buffer.from(stdout, 'base64').toString('utf-8')
-              : null,
-            stderr: stderr
-              ? Buffer.from(stderr, 'base64').toString('utf-8')
-              : null,
-            compile_output: compile_output
-              ? Buffer.from(compile_output, 'base64').toString('utf-8')
-              : null,
+            stdout: decodedStdout,
+            stderr: decodedStderr,
+            compile_output: decodedCompileOutput,
             message: message
               ? Buffer.from(message, 'base64').toString('utf-8')
               : null,
             ...submissionData,
+            time,
+            memory,
           },
           errorTestCase: testCase,
         };
@@ -691,21 +718,37 @@ export class ChallengesService {
     const averageTime = totalTime / submissions.length;
     const averageMemory = totalMemory / submissions.length;
 
-    // Update the userChallengeResult with successful status
-    await this.userChallengeResultsRepo.update(
-      { id: userChallengeId },
-      {
-        time: averageTime,
-        memory: Math.round(averageMemory),
-        status: ChallengeResultStatusEnum.DONE,
-        status_id: Judge0Status.ACCEPTED,
-        message: Judge0StatusDescription[Judge0Status.ACCEPTED],
-      },
-    );
+    // Update userChallengeResult with the average time and memory
+    // and increase total_attempts
+    await Promise.all([
+      this.challengesRepo
+        .createQueryBuilder()
+        .update(Challenge)
+        .where({
+          id: chall.id,
+        })
+        .set({
+          accepted_results: () => 'accepted_results + 1',
+          total_attempts: () => 'total_attempts + 1',
+        })
+        .execute(),
+      this.userChallengeResultsRepo.update(
+        { id: userChallengeId },
+        {
+          time: averageTime,
+          memory: Math.round(averageMemory),
+          status: ChallengeResultStatusEnum.DONE,
+          status_id: Judge0Status.ACCEPTED,
+          message: Judge0StatusDescription[Judge0Status.ACCEPTED],
+        },
+      ),
+      this.todoChallengeService.markedAsDoneIfExists(chall.id, userId),
+    ]);
 
+    // store the total
     return {
       message: 'Success',
-      averageTime,
+      averageTime: Number(averageTime.toFixed(3)),
       averageMemory,
       statusCode: 200,
     };
@@ -857,5 +900,51 @@ export class ChallengesService {
       };
     });
     return result;
+  }
+
+  async getAllUserChallengeResultWithAChallenge(
+    userId: number,
+    challengeSlug: string,
+  ) {
+    const challenge = await this.challengesRepo.findOne({
+      where: {
+        slug: challengeSlug,
+      },
+    });
+    if (!challenge) {
+      throw new BadRequestException('Challenge not found');
+    }
+    const userChallengeResult = await this.userChallengeResultsRepo
+      .createQueryBuilder('ucr')
+      .leftJoinAndSelect('ucr.error_testcase', 'et')
+      .where('ucr.user_id = :userId', { userId })
+      .andWhere('ucr.status IN (:...statuses)', {
+        statuses: [
+          ChallengeResultStatusEnum.DONE,
+          ChallengeResultStatusEnum.FAILED,
+        ],
+      })
+      .andWhere('ucr.challenge_id = :challengeId', {
+        challengeId: challenge.id,
+      })
+      .select([
+        'ucr.id',
+        'ucr.status_id',
+        'ucr.code',
+        'ucr.created_at',
+        'ucr.language_id',
+        'ucr.time',
+        'ucr.memory',
+        'ucr.compile_output',
+        'ucr.stderr',
+        'ucr.stdout',
+        'ucr.message',
+        'et.id',
+        'et.input',
+        'et.expected_output',
+        'ucr.status',
+      ])
+      .getMany();
+    return userChallengeResult;
   }
 }

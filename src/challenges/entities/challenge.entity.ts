@@ -13,7 +13,7 @@ import { ChallengeDetail } from './challenge-detail.entity';
 import { Tag } from '../../tags/entities/tag.entity';
 import { TestCase } from './test-case.entity';
 import { Hint } from './hint.entity';
-import { TodoChallenge } from './todo-challenge.entity';
+import { TodoChallenge } from 'src/todo-challenge/entities/todo-challenge.entity';
 
 @Entity('challenges')
 export class Challenge {

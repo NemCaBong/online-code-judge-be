@@ -5,7 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { Class } from './class.entity';
+import { Class } from '../../classes/entities/class.entity';
 
 @Entity('posts')
 export class PostEntity {

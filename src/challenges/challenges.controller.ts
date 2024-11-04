@@ -270,4 +270,22 @@ export class ChallengesController {
       total,
     };
   }
+
+  @Get(':challengeSlug/user-challenge-results/all')
+  async getUserChallengeResultsOfAChallenge(
+    @Param('challengeSlug') challengeSlug: string,
+    @CurrentUser() user: User,
+  ) {
+    const userChallengeResults =
+      await this.challengesService.getAllUserChallengeResultWithAChallenge(
+        user.id,
+        challengeSlug,
+      );
+
+    return {
+      message: 'Success',
+      status_code: 200,
+      user_challenge_results: userChallengeResults,
+    };
+  }
 }

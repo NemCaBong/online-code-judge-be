@@ -10,7 +10,8 @@ import { Tag } from '../tags/entities/tag.entity';
 import { TestCase } from './entities/test-case.entity';
 import { Hint } from './entities/hint.entity';
 import { ChallengeTag } from './entities/challenge-tag.entity';
-import { TodoChallenge } from './entities/todo-challenge.entity';
+import { TodoChallenge } from 'src/todo-challenge/entities/todo-challenge.entity';
+import { TodoChallengeModule } from 'src/todo-challenge/todo-challenge.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { TodoChallenge } from './entities/todo-challenge.entity';
       ChallengeTag,
       TodoChallenge,
     ]),
+    TodoChallengeModule,
   ],
   providers: [ChallengesService],
   controllers: [ChallengesController],

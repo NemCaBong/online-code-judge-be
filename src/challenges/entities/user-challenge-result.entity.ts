@@ -5,9 +5,11 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Challenge } from './challenge.entity';
+import { TestCase } from './test-case.entity';
 
 @Entity('user_challenge_results')
 export class UserChallengeResult {
@@ -44,6 +46,18 @@ export class UserChallengeResult {
   @Column({ type: 'integer', nullable: true })
   memory: number;
 
+  @Column({ type: 'text', nullable: true })
+  stderr: string;
+
+  @Column({ type: 'text', nullable: true })
+  stdout: string;
+
+  @Column({ type: 'text', nullable: true })
+  compile_output: string;
+
+  @Column({ type: 'integer', nullable: true })
+  testcase_id: number;
+
   @ManyToOne(() => User, (user) => user.user_challenge_results, {
     createForeignKeyConstraints: false,
   })
@@ -55,4 +69,10 @@ export class UserChallengeResult {
   })
   @JoinColumn({ name: 'challenge_id' })
   challenge: Challenge;
+
+  @OneToOne(() => TestCase, (testcase) => testcase.user_challenge_result, {
+    createForeignKeyConstraints: false,
+  })
+  @JoinColumn({ name: 'testcase_id' })
+  error_testcase: TestCase;
 }

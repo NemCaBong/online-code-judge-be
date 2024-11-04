@@ -4,8 +4,7 @@ import { Class } from './entities/class.entity';
 import { UserClass } from './entities/user-class.entity';
 import { ClassService } from './class.service';
 import { ClassController } from './class.controller';
-import { PostEntity } from './entities/post.entity';
-import { ExerciseService } from 'src/exercises/exercise.service';
+import { PostEntity } from '../post/entities/post.entity';
 import { ExerciseModule } from 'src/exercises/exercise.module';
 import { UserExerciseDetail } from 'src/exercises/entities/user-exercise-detail';
 

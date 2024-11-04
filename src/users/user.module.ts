@@ -5,7 +5,7 @@ import { User } from './user.entity';
 import { UserChallengeResult } from 'src/challenges/entities/user-challenge-result.entity';
 import { UserClass } from 'src/classes/entities/user-class.entity';
 import { UserController } from './user.controller';
-import { TodoChallenge } from 'src/challenges/entities/todo-challenge.entity';
+import { TodoChallenge } from 'src/todo-challenge/entities/todo-challenge.entity';
 
 @Module({
   imports: [

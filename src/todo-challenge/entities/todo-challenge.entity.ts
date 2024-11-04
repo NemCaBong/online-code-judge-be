@@ -5,8 +5,8 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
-import { Challenge } from './challenge.entity';
 import { User } from 'src/users/user.entity';
+import { Challenge } from 'src/challenges/entities/challenge.entity';
 
 @Entity('todo_challenges')
 export class TodoChallenge {

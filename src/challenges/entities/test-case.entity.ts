@@ -4,8 +4,10 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  OneToOne,
 } from 'typeorm';
 import { Challenge } from './challenge.entity';
+import { UserChallengeResult } from './user-challenge-result.entity';
 
 @Entity('test_cases')
 export class TestCase {
@@ -29,4 +31,11 @@ export class TestCase {
   })
   @JoinColumn({ name: 'challenge_id' })
   challenge: Challenge;
+
+  @OneToOne(
+    () => UserChallengeResult,
+    (userChallengeResult) => userChallengeResult.error_testcase,
+    { createForeignKeyConstraints: false },
+  )
+  user_challenge_result: UserChallengeResult;
 }

@@ -69,7 +69,6 @@ export class ExerciseService {
         'e.id',
         'e.name',
         'e.created_at',
-        'e.slug',
         'class.id', // Select class information
         'class.name', // Assuming class has a name field
       ])
@@ -266,7 +265,6 @@ export class ExerciseService {
         'e.due_at',
         'e.created_at',
         'e.updated_at',
-        'e.slug',
         'c.id',
         'c.name',
         'uer.status',

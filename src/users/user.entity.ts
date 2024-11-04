@@ -1,8 +1,8 @@
-import { TodoChallenge } from 'src/challenges/entities/todo-challenge.entity';
 import { UserChallengeResult } from 'src/challenges/entities/user-challenge-result.entity';
 import { UserClass } from 'src/classes/entities/user-class.entity';
 import { UserExerciseResult } from 'src/exercises/entities/user-exercise-result.entity';
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { TodoChallenge } from 'src/todo-challenge/entities/todo-challenge.entity';
 
 @Entity('users')
 export class User {

@@ -13,6 +13,8 @@ import { DashboardController } from './dashboard/dashboard.controller';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TagModule } from './tags/tag.module';
 import { UserModule } from './users/user.module';
+import { TodoChallengeModule } from './todo-challenge/todo-challenge.module';
+import { PostModule } from './post/post.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { UserModule } from './users/user.module';
     DashboardModule,
     TagModule,
     UserModule,
+    TodoChallengeModule,
+    PostModule,
   ],
   controllers: [AppController, DashboardController],
   providers: [

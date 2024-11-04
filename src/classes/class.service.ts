@@ -147,6 +147,7 @@ export class ClassService {
       .innerJoinAndSelect('c.teacher', 't')
       .leftJoinAndSelect('c.posts', 'p')
       .where('c.slug = :slug', { slug: classSlug })
+      .orderBy('p.created_at', 'DESC')
       .select([
         'c.id',
         'c.name',
