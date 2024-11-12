@@ -33,9 +33,7 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/judge-be:${{ env.VERSION }}
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
+
       - name: Deploy to Server
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key && chmod 600 private_key
