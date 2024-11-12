@@ -38,15 +38,15 @@ jobs:
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key ubuntu@${{ secrets.HOSTNAME }} << EOF
-            sudo mkdir -p /usr/src/online-code-judge-be/
-            cd /usr/src/online-code-judge-be/
+            sudo mkdir -p /usr/src/
+            cd /usr/src/
             # Clone the repository if it doesn't exist, otherwise pull the latest changes
             if [ ! -d ".git" ]; then
-              git clone https://github.com/NemCaBong/online-code-judge-be.git
+              sudo git clone https://github.com/NemCaBong/online-code-judge-be.git
             else
-              git checkout main
-              git reset --hard origin/main
-              git pull origin main
+              sudo git checkout main
+              sudo git reset --hard origin/main
+              sudo git pull origin main
             fi
             docker compose up -d
             docker image prune -af
