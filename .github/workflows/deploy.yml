@@ -43,11 +43,11 @@ jobs:
             # Clone the repository if it doesn't exist, otherwise pull the latest changes
             if [ ! -d ".git" ]; then
               sudo git clone https://github.com/NemCaBong/online-code-judge-be.git
-            else
-              sudo git checkout main
-              sudo git reset --hard origin/main
-              sudo git pull origin main
             fi
+            cd online-code-judge-be/
+            sudo git checkout main
+            sudo git reset --hard origin/main
+            sudo git pull origin main
             sudo docker compose up -d
             sudo docker image prune -af
           EOF
