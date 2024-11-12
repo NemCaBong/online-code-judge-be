@@ -49,7 +49,7 @@ services:
     restart: always
 
   app:
-    image: thobeogalaxy/judge-be:latest
+    image: thobeogalaxy/judge-be:v1.0.6
     ports:
       - '3000:3000'
     environment:
