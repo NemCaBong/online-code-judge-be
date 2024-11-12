@@ -40,7 +40,7 @@ jobs:
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > private_key && chmod 600 private_key
           ssh -o StrictHostKeyChecking=no -i private_key ubuntu@${{ secrets.HOSTNAME }} << EOF
-            mkdir -p /usr/src/online-code-judge-be/
+            sudo mkdir -p /usr/src/online-code-judge-be/
             cd /usr/src/online-code-judge-be/
             # Clone the repository if it doesn't exist, otherwise pull the latest changes
             if [ ! -d ".git" ]; then
