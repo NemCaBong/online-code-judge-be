@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Challenge } from './entities/challenge.entity';
 import { DataSource, In, LessThanOrEqual, Repository } from 'typeorm';
@@ -20,11 +16,12 @@ import { RunPollDto } from './dtos/run-poll.dto';
 import { SubmitPollDto } from './dtos/submit-poll.dto';
 import { Judge0Status } from 'src/common/enums/judge0-status.enum';
 import { SubmitChallengeDto } from './dtos/submit-challenge.dto';
-import { Judge0StatusDescription } from 'src/common/constants';
+import { Judge0StatusDescription, LANGUAGE_MAP } from 'src/common/constants';
 import { DifficultyEnum } from 'src/common/enums/difficulty.enum';
 import { ChallengeResultStatusEnum } from 'src/common/enums/challenge-status.enum';
 import { TodoChallenge } from 'src/todo-challenge/entities/todo-challenge.entity';
 import { TodoChallengeService } from 'src/todo-challenge/todo-challenge.service';
+import { ChallengeDetail } from './entities/challenge-detail.entity';
 
 @Injectable()
 export class ChallengesService {
@@ -257,9 +254,23 @@ export class ChallengesService {
         challengeTag.challenge_id = savedChallenge.id;
         return challengeTag;
       });
+
+      // Save boilerplate codes
+      const boilerplateCodes = createChallengeDto.boilerplate_codes.map(
+        (boilerplateDto) => {
+          const challengeDetail = new ChallengeDetail();
+          challengeDetail.language_id =
+            LANGUAGE_MAP[boilerplateDto.language.toLowerCase()];
+          challengeDetail.boilerplate_code = boilerplateDto.code;
+          challengeDetail.challenge_id = savedChallenge.id;
+          return challengeDetail;
+        },
+      );
+
       await Promise.all([
         queryRunner.manager.save(hints),
         queryRunner.manager.save(tags),
+        queryRunner.manager.save(boilerplateCodes),
       ]);
 
       await queryRunner.commitTransaction();

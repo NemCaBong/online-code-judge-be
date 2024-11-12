@@ -33,6 +33,16 @@ class HintDto {
   hintAnswer: string;
 }
 
+class ChallengeBoilerplateCodeDto {
+  @IsString()
+  @IsNotEmpty()
+  language: string;
+
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+}
+
 export class CreateChallengeDto {
   @IsString()
   @IsNotEmpty()
@@ -51,9 +61,9 @@ export class CreateChallengeDto {
   @IsNotEmpty()
   markdownContent: string;
 
-  @IsString()
+  @IsArray()
   @IsNotEmpty()
-  boilerplate_code: string;
+  boilerplate_codes: ChallengeBoilerplateCodeDto[];
 
   @IsArray()
   @ValidateNested({ each: true })
