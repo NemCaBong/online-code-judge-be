@@ -48,6 +48,8 @@ jobs:
             sudo git checkout main
             sudo git reset --hard origin/main
             sudo git pull origin main
+            sudo docker compose up -d db redis
+            sleep 10s
             sudo docker compose up -d
             sudo docker image prune -af
           EOF
