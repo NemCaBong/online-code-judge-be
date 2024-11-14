@@ -371,7 +371,7 @@ export class ChallengesService {
 
     try {
       const response = await axios.post(
-        `http://${process.env.NODE_ENV === 'production' ? 'judge0-server' : 'localhost'}:2358/submissions/batch?base64_encoded=true`,
+        `http://${process.env.NODE_ENV === 'production' ? 'judge0_server' : 'localhost'}:2358/submissions/batch?base64_encoded=true`,
         {
           submissions,
         },
@@ -404,7 +404,7 @@ export class ChallengesService {
 
       const tokens = runPollDto.runPoll.map((item) => item.token).join(',');
       const response = await axios.get(
-        `http://${process.env.NODE_ENV === 'production' ? 'judge0-server' : 'localhost'}:2358/submissions/batch?tokens=${tokens}&base64_encoded=true`,
+        `http://${process.env.NODE_ENV === 'production' ? 'judge0_server' : 'localhost'}:2358/submissions/batch?tokens=${tokens}&base64_encoded=true`,
         {
           headers: {
             'X-Auth-Token': 't2UFBewPFQcqnMwPaPmmBChpy7P9T6tT',
@@ -550,7 +550,7 @@ export class ChallengesService {
     try {
       // Send submissions to Judge0 API
       const response = await axios.post(
-        `http://${process.env.NODE_ENV === 'production' ? 'judge0-server' : 'localhost'}:2358/submissions/batch?base64_encoded=true`,
+        `http://${process.env.NODE_ENV === 'production' ? 'judge0_server' : 'localhost'}:2358/submissions/batch?base64_encoded=true`,
         { submissions },
         {
           headers: {
@@ -620,7 +620,7 @@ export class ChallengesService {
     const { submitPoll } = submitPollDto;
     const tokens = submitPoll.map((item) => item.token).join(',');
     const response = await axios.get(
-      `http://${process.env.NODE_ENV === 'production' ? 'judge0-server' : 'localhost'}:2358/submissions/batch?tokens=${tokens}&base64_encoded=true`,
+      `http://${process.env.NODE_ENV === 'production' ? 'judge0_server' : 'localhost'}:2358/submissions/batch?tokens=${tokens}&base64_encoded=true`,
       {
         headers: {
           'X-Auth-Token': 't2UFBewPFQcqnMwPaPmmBChpy7P9T6tT',

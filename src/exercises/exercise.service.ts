@@ -360,7 +360,7 @@ export class ExerciseService {
       );
 
       const response = await axios.post(
-        `http://${process.env.NODE_ENV === 'production' ? 'judge0-server' : 'localhost'}:2358/submissions?base64_encoded=true&wait=true`,
+        `http://${process.env.NODE_ENV === 'production' ? 'judge0_server' : 'localhost'}:2358/submissions?base64_encoded=true&wait=true`,
         {
           source_code: '',
           language_id: 89,
