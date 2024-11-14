@@ -55,11 +55,11 @@ services:
     env_file: judge0.conf
     <<: *default-logging
     restart: always
-    # networks:
-    #   - online-code-judge-network
+    networks:
+      - online-code-judge-network
 
   app:
-    image: thobeogalaxy/judge-be:v1.0.10
+    image: thobeogalaxy/judge-be:v1.0.11
     container_name: judge0_app
     ports:
       - '3000:3000'
