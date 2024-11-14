@@ -20,7 +20,7 @@ import { PostModule } from './post/post.module';
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
+      host: process.env.NODE_ENV == 'production' ? 'judge0_db' : 'localhost',
       port: 5432,
       username: 'judge0',
       password: '12345',

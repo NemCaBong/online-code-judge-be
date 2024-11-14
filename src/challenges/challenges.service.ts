@@ -22,6 +22,7 @@ import { ChallengeResultStatusEnum } from 'src/common/enums/challenge-status.enu
 import { TodoChallenge } from 'src/todo-challenge/entities/todo-challenge.entity';
 import { TodoChallengeService } from 'src/todo-challenge/todo-challenge.service';
 import { ChallengeDetail } from './entities/challenge-detail.entity';
+import callJudgeServer from 'src/utils/call-judge-server';
 
 @Injectable()
 export class ChallengesService {
@@ -370,7 +371,7 @@ export class ChallengesService {
 
     try {
       const response = await axios.post(
-        'http://localhost:2358/submissions/batch?base64_encoded=true',
+        `http://${process.env.NODE_ENV === 'production' ? 'judge0-server' : 'localhost'}:2358/submissions/batch?base64_encoded=true`,
         {
           submissions,
         },
@@ -380,6 +381,7 @@ export class ChallengesService {
           },
         },
       );
+      console.log(submissions);
 
       // Combine tokens with test case IDs
       const result = response.data.map((item, index) => ({
@@ -402,7 +404,7 @@ export class ChallengesService {
 
       const tokens = runPollDto.runPoll.map((item) => item.token).join(',');
       const response = await axios.get(
-        `http://localhost:2358/submissions/batch?tokens=${tokens}&base64_encoded=true`,
+        `http://${process.env.NODE_ENV === 'production' ? 'judge0-server' : 'localhost'}:2358/submissions/batch?tokens=${tokens}&base64_encoded=true`,
         {
           headers: {
             'X-Auth-Token': 't2UFBewPFQcqnMwPaPmmBChpy7P9T6tT',
@@ -548,7 +550,7 @@ export class ChallengesService {
     try {
       // Send submissions to Judge0 API
       const response = await axios.post(
-        'http://localhost:2358/submissions/batch?base64_encoded=true',
+        `http://${process.env.NODE_ENV === 'production' ? 'judge0-server' : 'localhost'}:2358/submissions/batch?base64_encoded=true`,
         { submissions },
         {
           headers: {
@@ -618,7 +620,7 @@ export class ChallengesService {
     const { submitPoll } = submitPollDto;
     const tokens = submitPoll.map((item) => item.token).join(',');
     const response = await axios.get(
-      `http://localhost:2358/submissions/batch?tokens=${tokens}&base64_encoded=true`,
+      `http://${process.env.NODE_ENV === 'production' ? 'judge0-server' : 'localhost'}:2358/submissions/batch?tokens=${tokens}&base64_encoded=true`,
       {
         headers: {
           'X-Auth-Token': 't2UFBewPFQcqnMwPaPmmBChpy7P9T6tT',
