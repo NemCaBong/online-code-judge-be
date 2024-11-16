@@ -558,16 +558,6 @@ export class ChallengesService {
           },
         },
       );
-      // .then((response) => {
-      //   console.log('Success');
-      //   return response;
-      // })
-      // .catch((error) => {
-      //   console.log('Error: ', error);
-      //   // return error;
-      //   throw error;
-      // });
-
       // Extract tokens from the response
       const tokens = response.data.map((item) => item.token);
       const res = testCases.map((testCase, index) => {
