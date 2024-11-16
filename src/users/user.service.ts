@@ -34,7 +34,7 @@ export class UserService {
     // Read the XLSX file from the buffer
     const workbook = XLSX.read(file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
-    console.log(sheetName);
+    // console.log(sheetName);
     const worksheet = workbook.Sheets[sheetName];
 
     // Convert the sheet to JSON

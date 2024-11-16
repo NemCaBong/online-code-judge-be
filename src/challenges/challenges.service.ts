@@ -381,7 +381,7 @@ export class ChallengesService {
           },
         },
       );
-      console.log(submissions);
+      // console.log(submissions);
 
       // Combine tokens with test case IDs
       const result = response.data.map((item, index) => ({
@@ -549,25 +549,24 @@ export class ChallengesService {
 
     try {
       // Send submissions to Judge0 API
-      const response = await axios
-        .post(
-          `http://${process.env.NODE_ENV === 'production' ? 'judge0_server' : 'localhost'}:2358/submissions/batch?base64_encoded=true`,
-          { submissions },
-          {
-            headers: {
-              'X-Auth-Token': 't2UFBewPFQcqnMwPaPmmBChpy7P9T6tT',
-            },
+      const response = await axios.post(
+        `http://${process.env.NODE_ENV === 'production' ? 'judge0_server' : 'localhost'}:2358/submissions/batch?base64_encoded=true`,
+        { submissions },
+        {
+          headers: {
+            'X-Auth-Token': 't2UFBewPFQcqnMwPaPmmBChpy7P9T6tT',
           },
-        )
-        .then((response) => {
-          console.log('Success');
-          return response;
-        })
-        .catch((error) => {
-          console.log('Error: ', error);
-          // return error;
-          throw error;
-        });
+        },
+      );
+      // .then((response) => {
+      //   console.log('Success');
+      //   return response;
+      // })
+      // .catch((error) => {
+      //   console.log('Error: ', error);
+      //   // return error;
+      //   throw error;
+      // });
 
       // Extract tokens from the response
       const tokens = response.data.map((item) => item.token);

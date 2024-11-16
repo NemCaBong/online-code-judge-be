@@ -21,9 +21,6 @@ export default async function callJudgeServer(
     // For GET requests, remove the data property
     delete config.data;
   }
-  const curlCommand = `curl -X ${config.method} '${config.url}' -H 'Content-Type: ${config.headers['Content-Type']}' -H 'X-Auth-Token: ${config.headers['X-Auth-Token']}' -d '${JSON.stringify(config.data)}'`;
-
-  console.log('Equivalent curl command:', curlCommand);
 
   return axios(config);
 }

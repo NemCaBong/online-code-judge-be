@@ -22,7 +22,7 @@ export class ClassController {
 
   @Get()
   async getAllClassesOfUser(@CurrentUser() user: User) {
-    console.log(user);
+    // console.log(user);
     const classes = await this.classService.getAllClassesOfUser(user.id);
     return {
       message: 'Success',

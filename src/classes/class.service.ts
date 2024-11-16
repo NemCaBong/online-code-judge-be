@@ -97,7 +97,7 @@ export class ClassService {
   }
 
   async getAllClassesOfUser(userId: number): Promise<Class[]> {
-    console.log(userId);
+    // console.log(userId);
     return await this.classRepo
       .createQueryBuilder('c')
       .innerJoinAndSelect('c.user_classes', 'uc', 'uc.class_id = c.id')
