@@ -307,7 +307,7 @@ export class ExerciseService {
   async runExercise(
     exerciseId: number,
     runExerciseDto: RunExerciseDto,
-    // userId: number,
+    userId: number,
   ) {
     const exercise = await this.exerciseRepo.findOne({
       where: { id: exerciseId },
