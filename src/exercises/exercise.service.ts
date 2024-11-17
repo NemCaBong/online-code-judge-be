@@ -307,7 +307,7 @@ export class ExerciseService {
   async runExercise(
     exerciseId: number,
     runExerciseDto: RunExerciseDto,
-    userId: number,
+    // userId: number,
   ) {
     const exercise = await this.exerciseRepo.findOne({
       where: { id: exerciseId },
@@ -322,7 +322,11 @@ export class ExerciseService {
       tempBaseDir,
       `exercise-${exerciseId}-${Date.now()}`,
     );
+    console.log('tempBaseDir: ', tempBaseDir);
+    console.log('tmpDir', tmpDir);
+
     const additionalFilesDir = path.join(tmpDir, 'additional_files');
+    console.log('additionalFilesDir: ', additionalFilesDir);
 
     // Create temp directories if they don't exist
     await fs.mkdir(tempBaseDir, { recursive: true });
@@ -358,6 +362,7 @@ export class ExerciseService {
       const { stdout: zippedBase64 } = await execPromise(
         `cd "${additionalFilesDir}" && zip -r - . | base64 -w0`,
       );
+      console.log('zippedBased64: ', zippedBase64);
 
       const response = await axios.post(
         `http://${process.env.NODE_ENV === 'production' ? 'judge0_server' : 'localhost'}:2358/submissions?base64_encoded=true&wait=true`,
