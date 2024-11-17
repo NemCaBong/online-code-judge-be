@@ -1,6 +1,9 @@
 # Use the official Node.js 16 image as the base image
 FROM node:20-alpine
 
+# Install the zip package
+RUN apk add --no-cache zip
+
 # Set the working directory inside the container
 WORKDIR /usr/src/app
 
