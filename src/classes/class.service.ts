@@ -5,6 +5,7 @@ import { Class } from './entities/class.entity';
 import { CreateClassDto } from './dtos/create-class.dto';
 import slugify from 'slugify';
 import { UserClass } from './entities/user-class.entity';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class ClassService {
@@ -61,13 +62,13 @@ export class ClassService {
     await queryRunner.startTransaction();
 
     try {
-      // Create a new Class instance
+      const randomString = randomBytes(3).toString('hex');
       const newClass = this.classRepo.create({
         name: classData.name,
-        slug: slugify(classData.name, {
+        slug: `${slugify(classData.name, {
           lower: true,
           strict: true,
-        }),
+        })}-${randomString}`,
         total_students: classData.students.length,
         teacher_id: classData.teacher_id,
       });
@@ -75,29 +76,31 @@ export class ClassService {
       // Save the new class to the database
       const savedClass = await queryRunner.manager.save(newClass);
 
-      // Create UserClass entries for each student
-      const userClasses = classData.students.map((student) => ({
-        user_id: student.value,
-        class_id: savedClass.id,
-      }));
-
-      // Save UserClass entries to the database
+      const userClasses = [
+        {
+          user_id: 44,
+          class_id: savedClass.id,
+        },
+        {
+          user_id: classData.teacher_id,
+          class_id: savedClass.id,
+        },
+        ...classData.students.map((student) => ({
+          user_id: student.value,
+          class_id: savedClass.id,
+        })),
+      ];
       await queryRunner.manager.save(UserClass, userClasses);
-
-      // Commit the transaction
       await queryRunner.commitTransaction();
     } catch (error) {
-      // Rollback the transaction in case of error
       await queryRunner.rollbackTransaction();
       throw error;
     } finally {
-      // Release the query runner
       await queryRunner.release();
     }
   }
 
   async getAllClassesOfUser(userId: number): Promise<Class[]> {
-    // console.log(userId);
     return await this.classRepo
       .createQueryBuilder('c')
       .innerJoinAndSelect('c.user_classes', 'uc', 'uc.class_id = c.id')

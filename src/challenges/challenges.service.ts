@@ -85,6 +85,36 @@ export class ChallengesService {
       .where('c.is_deleted = :isDeleted', { isDeleted: false })
       .orderBy('c.created_at', 'DESC');
     const challenges = await queryBuilder.getMany();
+    for (const chall of challenges) {
+      let flag = 0; // consider not-done
+      let recordedUcr: UserChallengeResult;
+      for (const ucr of chall.user_challenge_results) {
+        if (ucr.status === ChallengeResultStatusEnum.DONE) {
+          flag = 1;
+          recordedUcr = ucr;
+        }
+        if (
+          flag !== 1 &&
+          ucr.status in
+            [
+              ChallengeResultStatusEnum.FAILED,
+              ChallengeResultStatusEnum.PENDING,
+            ]
+        ) {
+          recordedUcr = ucr;
+          flag = 2;
+        }
+      }
+      if (flag === 0) {
+        continue;
+      } else {
+        chall.user_challenge_results = [
+          {
+            ...recordedUcr,
+          },
+        ];
+      }
+    }
     return challenges;
   }
 
@@ -146,6 +176,7 @@ export class ChallengesService {
         'tc.is_done',
       ])
       .where('tc.user_id = :userId', { userId })
+      .andWhere('tc.is_done = :isDone', { isDone: false })
       .orderBy('tc.created_at', 'DESC')
       .getMany();
 
@@ -183,17 +214,17 @@ export class ChallengesService {
 
     zipEntries.forEach((zipEntry) => {
       const entryName = zipEntry.entryName;
-      if (entryName.startsWith(`${fieldname}/input/`)) {
+      if (entryName.endsWith('.in')) {
         const fileData = zipEntry.getData();
         const content = fileData.toString();
         if (content) {
-          inputFiles.push(content);
+          inputFiles.push({ name: entryName, content });
         }
-      } else if (entryName.startsWith(`${fieldname}/output/`)) {
+      } else if (entryName.endsWith('.out')) {
         const fileData = zipEntry.getData();
         const content = fileData.toString();
         if (content) {
-          outputFiles.push(content);
+          outputFiles.push({ name: entryName, content });
         }
       }
     });
@@ -203,15 +234,19 @@ export class ChallengesService {
       throw new BadRequestException('Mismatch between input and output files');
     }
 
+    // Sort files to ensure they are paired correctly
+    inputFiles.sort((a, b) => a.name.localeCompare(b.name));
+    outputFiles.sort((a, b) => a.name.localeCompare(b.name));
+
     // Save test cases to the database
     const testCases = inputFiles.map((input, index) => {
       const testCase = new TestCase();
-      testCase.input = input;
-      testCase.expected_output = outputFiles[index];
+      testCase.input = input.content;
+      testCase.expected_output = outputFiles[index].content;
       testCase.challenge_id = challengeId;
       return testCase;
     });
-    // console.log(testCases);
+
     await this.testCaseRepo.save(testCases);
 
     return {
@@ -939,6 +974,7 @@ export class ChallengesService {
       .andWhere('ucr.challenge_id = :challengeId', {
         challengeId: challenge.id,
       })
+      .orderBy('ucr.created_at', 'DESC')
       .select([
         'ucr.id',
         'ucr.status_id',

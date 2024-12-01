@@ -6,6 +6,8 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Query,
+  Res,
 } from '@nestjs/common';
 import { ExerciseService } from './exercise.service';
 import { CreateExerciseDto } from './dtos/create-exercise.dto';
@@ -14,6 +16,7 @@ import { User } from 'src/users/user.entity';
 import { UserRole } from 'src/common/enums/user-role.enum';
 import { RunExerciseDto } from './dtos/run-exercise.dto';
 import { EvaluateExerciseDto } from './dtos/evaluate-exercise.dto';
+import { Response } from 'express';
 
 @Controller('exercises')
 export class ExerciseController {
@@ -211,6 +214,30 @@ export class ExerciseController {
       userExerciseResultId,
     });
 
+    return {
+      message: 'Success',
+      statusCode: 200,
+      exercise,
+    };
+  }
+
+  @Get('export-to-zip')
+  async exportExercisesToZip(
+    @Query('exerciseId', ParseIntPipe) exerciseId: number,
+    @Res() res: Response,
+  ) {
+    const zip = await this.exerciseService.exportExerciseDetails(exerciseId);
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename=exercise-${exerciseId}-details.zip`,
+      'Content-Length': zip.length,
+    });
+    res.end(zip);
+  }
+
+  @Get(':exerciseId')
+  async getExerciseById(@Param('exerciseId', ParseIntPipe) exerciseId: number) {
+    const exercise = await this.exerciseService.getExerciseById(exerciseId);
     return {
       message: 'Success',
       statusCode: 200,

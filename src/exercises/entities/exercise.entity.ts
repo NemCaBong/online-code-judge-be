@@ -9,7 +9,6 @@ import {
 import { UserExerciseResult } from './user-exercise-result.entity';
 import { ExerciseDetail } from './exercise-detail.entity';
 import { Class } from 'src/classes/entities/class.entity';
-import { User } from 'src/users/user.entity';
 
 @Entity('exercises')
 export class Exercise {

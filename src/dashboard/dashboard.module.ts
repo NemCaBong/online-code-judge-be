@@ -10,6 +10,7 @@ import { Exercise } from '../exercises/entities/exercise.entity';
 import { ExerciseDetail } from 'src/exercises/entities/exercise-detail.entity';
 import { UserExerciseResult } from 'src/exercises/entities/user-exercise-result.entity';
 import { UserExerciseDetail } from 'src/exercises/entities/user-exercise-detail';
+import { Language } from 'src/exercises/entities/language.entity';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { UserExerciseDetail } from 'src/exercises/entities/user-exercise-detail'
       ExerciseDetail,
       UserExerciseResult,
       UserExerciseDetail,
+      Language,
     ]),
     ClassModule,
   ],

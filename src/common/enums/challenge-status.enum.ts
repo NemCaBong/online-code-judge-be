@@ -3,4 +3,5 @@ export enum ChallengeResultStatusEnum {
   PENDING = 'pending',
   NOT_DONE = 'not-done',
   FAILED = 'failed',
+  TODO = 'todo',
 }

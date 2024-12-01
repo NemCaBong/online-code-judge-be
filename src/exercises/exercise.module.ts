@@ -8,11 +8,13 @@ import { ClassModule } from '../classes/class.module';
 import { ExerciseController } from './exercise.controller';
 import { ExerciseDetail } from './entities/exercise-detail.entity';
 import { UserExerciseDetail } from './entities/user-exercise-detail';
+import { Language } from './entities/language.entity';
 
 @Module({
   imports: [
     forwardRef(() => ClassModule),
     TypeOrmModule.forFeature([
+      Language,
       Exercise,
       UserClass,
       UserExerciseResult,

@@ -7,13 +7,11 @@ import { ClassService } from '../classes/class.service';
 import { CreateExerciseDto } from './dtos/create-exercise.dto';
 import { ExerciseDetail } from './entities/exercise-detail.entity';
 import { LANGUAGE_MAP } from 'src/common/constants';
-import slugify from 'slugify';
 import { UserExerciseResult } from './entities/user-exercise-result.entity';
 import { UserExerciseStatus } from 'src/common/enums/user-exercise-status.enum';
 import { RunExerciseDto } from './dtos/run-exercise.dto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as os from 'os';
 import axios from 'axios';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -21,6 +19,9 @@ import { UserExerciseDetail } from './entities/user-exercise-detail';
 import { User } from 'src/users/user.entity';
 import { Class } from 'src/classes/entities/class.entity';
 import { EvaluateExerciseDto } from './dtos/evaluate-exercise.dto';
+import * as AdmZip from 'adm-zip';
+import { time } from 'console';
+import { Language } from './entities/language.entity';
 
 const execPromise = promisify(exec);
 
@@ -37,6 +38,8 @@ export class ExerciseService {
     private readonly userExerciseResultRepo: Repository<UserExerciseResult>,
     @InjectRepository(UserExerciseDetail)
     private readonly userExerciseDetailRepo: Repository<UserExerciseDetail>,
+    @InjectRepository(Language)
+    private readonly languageRepo: Repository<Language>,
     private readonly classService: ClassService,
     private readonly dataSource: DataSource,
   ) {}
@@ -69,8 +72,9 @@ export class ExerciseService {
         'e.id',
         'e.name',
         'e.created_at',
-        'class.id', // Select class information
-        'class.name', // Assuming class has a name field
+        'class.id',
+        'class.name',
+        'class.slug',
       ])
       .getMany();
   }
@@ -114,18 +118,14 @@ export class ExerciseService {
     await queryRunner.startTransaction();
 
     try {
-      // Create a new Exercise instance
       const exercise = new Exercise();
       exercise.name = createExerciseDto.name;
       exercise.description = createExerciseDto.markdownContent;
-      // exercise.slug = slugify(createExerciseDto.name, { lower: true });
       exercise.due_at = createExerciseDto.due_at;
       exercise.class_id = createExerciseDto.class_id;
 
-      // Save the new exercise to the database
       const savedExercise = await queryRunner.manager.save(exercise);
 
-      // Create ExerciseDetail entries
       const exerciseDetails = createExerciseDto.boilerplate_codes.map(
         (exerciseDetail) => {
           const newExerciseDetail = new ExerciseDetail();
@@ -138,17 +138,12 @@ export class ExerciseService {
         },
       );
 
-      // Save ExerciseDetail entries to the database
       await queryRunner.manager.save(ExerciseDetail, exerciseDetails);
-
-      // Commit the transaction
       await queryRunner.commitTransaction();
     } catch (error) {
-      // Rollback the transaction in case of error
       await queryRunner.rollbackTransaction();
       throw error;
     } finally {
-      // Release the query runner
       await queryRunner.release();
     }
   }
@@ -322,11 +317,7 @@ export class ExerciseService {
       tempBaseDir,
       `exercise-${exerciseId}-${Date.now()}`,
     );
-    console.log('tempBaseDir: ', tempBaseDir);
-    console.log('tmpDir', tmpDir);
-
     const additionalFilesDir = path.join(tmpDir, 'additional_files');
-    console.log('additionalFilesDir: ', additionalFilesDir);
 
     // Create temp directories if they don't exist
     await fs.mkdir(tempBaseDir, { recursive: true });
@@ -334,21 +325,30 @@ export class ExerciseService {
     await fs.mkdir(additionalFilesDir);
 
     try {
-      const javaFiles = runExerciseDto.codes
-        .filter((code) => code.file_name.endsWith('.java'))
-        .map((code) => code.file_name);
-
-      // Create compile script with Main.java and all supporting files
-      await fs.writeFile(
-        path.join(additionalFilesDir, 'compile'),
-        `#!/bin/bash\n/usr/local/openjdk13/bin/javac ${javaFiles.join(' ')}`,
-        { mode: 0o755 },
-      );
-
-      // Run script will always execute Main class
+      const language = await this.languageRepo.findOne({
+        where: { id: runExerciseDto.codes[0].language_id },
+      });
+      if (!language) {
+        throw new BadRequestException('Language not supported');
+      }
+      if (language.compileCommand) {
+        const compileCmd = language.compileCommand.replace(
+          '%s',
+          runExerciseDto.codes
+            .filter((code) => code.file_name !== language.sourceFile)
+            .map((code) => code.file_name)
+            .join(' '),
+        );
+        await fs.writeFile(
+          path.join(additionalFilesDir, 'compile'),
+          `#!/bin/bash\n${compileCmd}`,
+          { mode: 0o755 },
+        );
+      }
+      const runCmd = language.executeCommand;
       await fs.writeFile(
         path.join(additionalFilesDir, 'run'),
-        '#!/bin/bash\n/usr/local/openjdk13/bin/java Main',
+        `#!/bin/bash\n${runCmd}`,
         { mode: 0o755 },
       );
 
@@ -362,7 +362,6 @@ export class ExerciseService {
       const { stdout: zippedBase64 } = await execPromise(
         `cd "${additionalFilesDir}" && zip -r - . | base64 -w0`,
       );
-      console.log('zippedBased64: ', zippedBase64);
 
       const response = await axios.post(
         `http://${process.env.NODE_ENV === 'production' ? 'judge0_server' : 'localhost'}:2358/submissions?base64_encoded=true&wait=true`,
@@ -370,6 +369,7 @@ export class ExerciseService {
           source_code: '',
           language_id: 89,
           additional_files: zippedBase64,
+          cpu_time_limit: 1,
         },
         {
           headers: {
@@ -622,5 +622,40 @@ export class ExerciseService {
 
     // Save the updated result
     return await this.userExerciseResultRepo.save(userExerciseResult);
+  }
+
+  async exportExerciseDetails(exerciseId: number): Promise<Buffer> {
+    const results = await this.userExerciseResultRepo.find({
+      where: { exercise: { id: exerciseId } },
+      relations: [
+        'user',
+        'user_exercise_details',
+        'exercise',
+        'exercise.exercise_details',
+      ],
+    });
+
+    if (!results.length) {
+      throw new BadRequestException('No results found for this exercise');
+    }
+
+    const zip = new AdmZip();
+
+    for (const result of results) {
+      const userFolderName = `${result.user.id}-${result.user.first_name}-${result.user.last_name}`;
+      zip.addFile(userFolderName + '/', Buffer.alloc(0));
+
+      for (const exerciseDetail of result.exercise.exercise_details) {
+        const fileName = exerciseDetail.file_name;
+        const fileContent = exerciseDetail.boilerplate_code;
+        zip.addFile(`${userFolderName}/${fileName}`, Buffer.from(fileContent));
+      }
+    }
+
+    return zip.toBuffer();
+  }
+
+  async getExerciseById(exerciseId: number) {
+    return await this.exerciseRepo.findOne({ where: { id: exerciseId } });
   }
 }

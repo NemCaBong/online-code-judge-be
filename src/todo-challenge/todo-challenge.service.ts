@@ -8,11 +8,11 @@ import { TodoChallenge } from './entities/todo-challenge.entity';
 export class TodoChallengeService {
   constructor(
     @InjectRepository(TodoChallenge)
-    private todoChallengeRepository: Repository<TodoChallenge>,
+    private todoChallengeRepo: Repository<TodoChallenge>,
   ) {}
 
   async addTodo(userId: number, challengeId: number) {
-    const existingTodo = await this.todoChallengeRepository.findOne({
+    const existingTodo = await this.todoChallengeRepo.findOne({
       where: {
         user_id: userId,
         challenge_id: challengeId,
@@ -24,17 +24,17 @@ export class TodoChallengeService {
       throw new BadRequestException('Exercise already in todo list');
     }
 
-    const todoChallenge = this.todoChallengeRepository.create({
+    const todoChallenge = this.todoChallengeRepo.create({
       user_id: userId,
       challenge_id: challengeId,
       is_done: false,
     });
 
-    return await this.todoChallengeRepository.save(todoChallenge);
+    return await this.todoChallengeRepo.save(todoChallenge);
   }
 
   async markedAsDoneIfExists(challengeId: number, userId: number) {
-    const todoChallenge = await this.todoChallengeRepository.findOne({
+    const todoChallenge = await this.todoChallengeRepo.findOne({
       where: {
         challenge_id: challengeId,
         user_id: userId,
@@ -45,7 +45,7 @@ export class TodoChallengeService {
     if (!todoChallenge) {
       return;
     }
-    return await this.todoChallengeRepository.update(todoChallenge.id, {
+    return await this.todoChallengeRepo.update(todoChallenge.id, {
       is_done: true,
     });
   }

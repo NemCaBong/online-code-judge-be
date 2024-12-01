@@ -39,7 +39,7 @@ export class UserService {
 
     // Convert the sheet to JSON
     const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet);
-    const passwd = await bcrypt.hash('12345', 10);
+    const passwd = await bcrypt.hash('123456', 10);
     // Map JSON data to User entities
     const users = jsonData.map((data) => {
       // Set other fields as necessary

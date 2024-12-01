@@ -54,7 +54,13 @@ export class Challenge {
   @Column('integer', { default: 128 })
   space_limit: number;
 
-  @Column('integer', { default: 1 })
+  @Column({
+    type: 'numeric',
+    precision: 10,
+    scale: 2,
+    default: 1,
+    nullable: true,
+  })
   time_limit: number;
 
   @OneToMany(
