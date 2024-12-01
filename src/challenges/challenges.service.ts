@@ -833,9 +833,9 @@ export class ChallengesService {
       .andWhere('ucr.status = :status', {
         status: ChallengeResultStatusEnum.DONE,
       })
-      .groupBy('ucr.challenge_id')
-      .getCount();
-    return totalChallenges;
+      .select('COUNT(DISTINCT ucr.challenge_id)', 'total')
+      .getRawOne();
+    return parseInt(totalChallenges.total, 10);
   }
 
   async getTotalDoneHardChallenges(userId: number) {
