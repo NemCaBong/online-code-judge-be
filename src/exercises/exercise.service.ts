@@ -93,8 +93,9 @@ export class ExerciseService {
         'uer.user_id = :userId',
         { userId },
       )
-      .where('uer.status = :status', { status: 'done' })
-      .orWhere('uer.status = :status', { status: 'graded' })
+      .where('uer.status IN (:...statuses)', {
+        statuses: [UserExerciseStatus.DONE, UserExerciseStatus.GRADED],
+      })
       .andWhere('e.class_id IN (:...classIds)', { classIds })
       .getCount();
   }
@@ -427,29 +428,34 @@ export class ExerciseService {
         relations: ['user_exercise_details'],
       });
 
-      if (existingResult && existingResult.status !== 'not-done') {
+      if (
+        existingResult &&
+        existingResult.status !== UserExerciseStatus.NOT_DONE
+      ) {
         throw new BadRequestException(
           'You have already submitted this exercise',
         );
       }
       let res: UserExerciseResult;
-      if (existingResult && existingResult.status === 'not-done') {
+      if (
+        existingResult &&
+        existingResult.status === UserExerciseStatus.NOT_DONE
+      ) {
         // Update existing record
         if (exercise.due_at < currDate) {
-          existingResult.status = 'overdue';
+          existingResult.status = UserExerciseStatus.OVERDUE;
           existingResult.score = 0;
         } else {
-          existingResult.status = 'submitted';
+          existingResult.status = UserExerciseStatus.DONE;
         }
         existingResult.submitted_at = currDate;
         res = await queryRunner.manager.save(existingResult);
       } else {
-        // Create new records
         const newlyUserExerciseResult = this.userExerciseResultRepo.create({
           user_id: userId,
           exercise_id: exerciseId,
           class_id: thatClass.id,
-          status: 'submitted',
+          status: UserExerciseStatus.DONE,
           submitted_at: new Date(),
         });
 
@@ -597,14 +603,12 @@ export class ExerciseService {
       throw new BadRequestException('Class or exercise not found');
     }
 
-    // Check if the user is the teacher of the class
     if (userId !== thatClass.teacher.id) {
       throw new BadRequestException(
         'Only the teacher of this class can evaluate exercises',
       );
     }
 
-    // Update the exercise result
     const userExerciseResult = await this.userExerciseResultRepo.findOne({
       where: { id: userExerciseResultId },
     });
@@ -613,14 +617,11 @@ export class ExerciseService {
       throw new BadRequestException('Exercise result not found');
     }
 
-    // Update evaluation and score
     userExerciseResult.evaluation = evaluateExerciseDto.evaluation;
     userExerciseResult.score = parseFloat(
       parseFloat(evaluateExerciseDto.score).toFixed(2),
     );
     userExerciseResult.status = UserExerciseStatus.GRADED;
-
-    // Save the updated result
     return await this.userExerciseResultRepo.save(userExerciseResult);
   }
 
