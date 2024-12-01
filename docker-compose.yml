@@ -59,7 +59,7 @@ services:
       - online-code-judge-network
 
   app:
-    image: thobeogalaxy/judge-be:v1.0.14
+    image: thobeogalaxy/judge-be:v1.0.15
     container_name: judge0_app
     ports:
       - '3000:3000'
