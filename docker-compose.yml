@@ -20,7 +20,7 @@ services:
 
   workers:
     image: judge0/judge0:1.13.1
-    container_name: judge0_workers
+    # container_name: judge0_workers
     command: ['./scripts/workers']
     volumes:
       - ./judge0.conf:/judge0.conf:ro
@@ -59,7 +59,7 @@ services:
       - online-code-judge-network
 
   app:
-    image: thobeogalaxy/judge-be:v1.0.17
+    image: thobeogalaxy/judge-be:v1.0.18
     container_name: judge0_app
     ports:
       - '3000:3000'
